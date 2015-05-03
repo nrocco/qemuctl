@@ -114,7 +114,8 @@ class StartBoxCommand(Command):
     '''start a qemu box'''
     name = 'start'
     args = [
-        arg('box', help='the name of the box to start'),
+        arg('box', nargs="?", default="default",
+            help='the name of the box to start'),
     ]
 
     def run(self, args, parser, boxes):
