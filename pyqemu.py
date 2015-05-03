@@ -11,6 +11,12 @@ from pycli_tools.commands import Command, arg
 
 log = logging.getLogger(__name__)
 
+def generate_mac(name):
+    crc = zlib.crc32(name.encode("utf-8")) & 0xffffffff
+    crc = str(hex(crc))[2:]
+
+    return "52:54:%s%s:%s%s:%s%s:%s%s" % tuple(crc)
+
 class Box(object):
     @classmethod
     def factory(cls_object, qemufile="Qemufile"):
@@ -124,11 +130,12 @@ class StartBoxCommand(Command):
 class GenerateMacCommand(Command):
     '''generate a mac address'''
     name = 'generate-mac'
+    args = [
+        arg('string', help='a string to use as the basis for the mac address'),
+    ]
 
     def run(self, args, parser, boxes):
-        crc = zlib.crc32('blaat'.encode("utf-8")) & 0xffffffff
-        crc = str(hex(crc))[2:]
-        print("52:54:%s%s:%s%s:%s%s:%s%s" % tuple(crc))
+        print(generate_mac(args.string))
 
 
 def main():
