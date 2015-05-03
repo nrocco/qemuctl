@@ -154,7 +154,11 @@ def main():
     ])
 
     args = parser.parse_args()
-    args.func(args, parser=parser, boxes=Box.factory())
+
+    if 'func' not in args:
+        parser.print_help()
+    else:
+        args.func(args, parser=parser, boxes=Box.factory())
 
 if '__main__' == __name__:
     main()
