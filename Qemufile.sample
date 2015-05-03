@@ -1,0 +1,16 @@
+---
+notsio:
+    image:
+        file: notsio.img
+        size: 512M
+        type: qcow2
+    architecture: x86_64
+
+pex:
+    image: pex.img
+
+lswasp_node:
+    architecture: x86_64
+
+openvpn:
+    image: ~

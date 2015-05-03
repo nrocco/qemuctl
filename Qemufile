@@ -1,0 +1,12 @@
+---
+default:
+    image: ~
+    architecture: x86_64
+    #args: -net nic -net tap,ifname=tap1
+    #args: -net nic -net bridge,br=bridge0
+
+    # Boot kernel directly
+    #args: -kernel vmlinuz -initrd archiso.img
+
+    # Boot iso
+    args: -curses -cdrom /Users/nrocco/Downloads/install-x86-minimal-20150421.iso
