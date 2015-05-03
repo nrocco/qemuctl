@@ -20,6 +20,9 @@ def generate_mac(name):
 class Box(object):
     @classmethod
     def factory(cls_object, qemufile="Qemufile"):
+        if not os.path.exists(qemufile):
+            return []
+
         with open(qemufile, 'r') as file:
             content = yaml.load(file)
 
