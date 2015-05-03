@@ -151,6 +151,10 @@ def main():
         logging_format='[%(asctime)-15s] %(levelname)s %(message)s',
     )
 
+    parser.add_argument('--qemufile', default="Qemufile",
+        help='the name of the Qemufile to read boxes from',
+    )
+
     parser.add_commands([
         ListBoxesCommand(),
         StartBoxCommand(),
@@ -162,7 +166,7 @@ def main():
     if 'func' not in args:
         parser.print_help()
     else:
-        args.func(args, parser=parser, boxes=Box.factory())
+        args.func(args, parser=parser, boxes=Box.factory(args.qemufile))
 
 if '__main__' == __name__:
     main()
