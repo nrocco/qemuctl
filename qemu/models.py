@@ -5,12 +5,45 @@ from .utils import generate_mac
 
 
 class Vm:
-    def __init__(self, name, data):
+    def __init__(self, name, data, plan=None):
         self.name = name
         self.data = data
+        self.plan = plan
 
-    def qemu_command(self, state_dir="", vnc_display=None):
-        state_dir = os.path.join(state_dir, self.name)
+    def create(self):
+        self.plan.hypervisor.run(self.as_qemu_command())
+        with self.plan.hypervisor.get_qmp(self) as qmp:
+            qmp.execute("change-vnc-password", password=self.plan.hypervisor.vnc_password)
+            qmp.execute("cont")
+
+    def start(self):
+        with self.plan.hypervisor.get_qmp(self) as qmp:
+            qmp.execute("cont")
+
+    def restart(self):
+        with self.plan.hypervisor.get_qmp(self) as qmp:
+            qmp.execute("system_reset")
+
+    def stop(self):
+        with self.plan.hypervisor.get_qmp(self) as qmp:
+            qmp.execute("stop")
+
+    def destroy(self):
+        with self.plan.hypervisor.get_qmp(self) as qmp:
+            qmp.execute("quit")
+        self.plan.hypervisor.run(["rm", "-rf", os.path.join(self.plan.hypervisor.state_directory, self.name)])
+
+    def info(self):
+        with self.plan.hypervisor.get_qmp(self) as qmp:
+            status = qmp.execute("query-status")
+            vnc = qmp.execute("query-vnc")
+        return {
+            "status": status["status"],
+            "display": "vnc://:{password}@{host}:{service}".format(**vnc, password=self.plan.hypervisor.vnc_password),
+        }
+
+    def as_qemu_command(self):
+        state_dir = os.path.join(self.plan.hypervisor.state_directory, self.name)
         args = [
             "qemu-system-{}".format(self.data.get('arch', 'x86_64')),
             "-name", self.name,
@@ -22,8 +55,8 @@ class Vm:
             "-uuid", str(uuid.uuid4()),
             "-vga", "std",
         ]
-        if vnc_display:
-            args += "-display", f"vnc={vnc_display}:0,to=100,password"
+        if self.plan.hypervisor.vnc_address:
+            args += "-display", f"vnc={self.plan.hypervisor.vnc_address}:0,to=100,password"
         else:
             args += "-display", "vnc=none"
         if 'smp' not in self.data:
@@ -64,8 +97,9 @@ class Vm:
 
 
 class Plan:
-    def __init__(self, data):
-        self.vms = [Vm(name, data) for name, data in data["vms"].items()]
+    def __init__(self, data, hypervisor=None):
+        self.hypervisor = hypervisor
+        self.vms = [Vm(name, data, self) for name, data in data["vms"].items()]
 
     def __repr__(self):
         return f"<Plan vms:{len(self.vms)}>"

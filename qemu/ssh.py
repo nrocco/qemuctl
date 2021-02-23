@@ -27,7 +27,8 @@ class Qmp:
     def __enter__(self):
         self.events = []
         self.proc = subprocess.Popen(self.command, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        [x for x in self._read()]  # workaround to consume the generator
+        if len(list(self._read())) == 0:
+            raise RuntimeError("Qmp monitor not available")
         self.execute("qmp_capabilities", enable=["oob"])
         return self
 
