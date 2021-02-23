@@ -1,12 +1,13 @@
 ---
-default:
-    image: ~
-    architecture: x86_64
-    #args: -net nic -net tap,ifname=tap1
-    #args: -net nic -net bridge,br=bridge0
-
-    # Boot kernel directly
-    #args: -kernel vmlinuz -initrd archiso.img
-
-    # Boot iso
-    args: -curses -cdrom /Users/nrocco/Downloads/install-x86-minimal-20150421.iso
+vms:
+  test01:
+    arch: x86_64
+    smp:
+      cores: 2
+    memory: 512
+    drives:
+      - file: "disk0.qcow2"
+        if: virtio
+    networks:
+      - bridge: br0
+        type: virtio-net

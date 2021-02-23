@@ -1,1 +1,10 @@
+/*.tsv
+*.pyc
 /env
+/*.egg-info
+.eggs
+/dist
+/htmlcov
+/.coverage
+/coverage.xml
+/.qemuctl.yaml
