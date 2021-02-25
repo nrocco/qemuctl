@@ -1,6 +1,7 @@
 import click
 import logging
 import os
+import pprint
 import yaml
 
 from . import __version__
@@ -53,8 +54,8 @@ def create(ctx, dry_run, vms):
         if vms and vm.name not in vms:
             continue
         if dry_run:
-            print(' '.join(vm.as_qemu_command(ctx.find_root().params['state_directory'])))
-            return
+            print(' '.join(vm.as_qemu_command()))
+            continue
         vm.create()
         print("{} created".format(vm.name))
 
@@ -123,14 +124,55 @@ def info(ctx, vms):
     Get information about vms
     """
     print("Plan:")
-    print("  Vms:")
+    print(" Vms:")
     for vm in ctx.meta['plan'].vms:
         if vms and vm.name not in vms:
             continue
-        info = vm.info()
-        print("    {}:".format(vm.name))
-        print("      Status: {status}".format(**info))
-        print("      Display: {display}".format(**info))
+        print("  {}:".format(vm.name))
+        try:
+            info = vm.info()
+            print("   Status: {status}".format(**info))
+            print("   Display: {display}".format(**info))
+        except RuntimeError:
+            print("   Status: not created")
+
+
+@main.group()
+def images():
+    """
+    Manage images
+    """
+    pass
+
+
+@images.command("list")
+@click.pass_context
+def images_list(ctx):
+    """
+    List all available images
+    """
+    print("\n".join(ctx.meta['hypervisor'].images_list()))
+
+
+@images.command("info")
+@click.argument('image', nargs=1)
+@click.pass_context
+def images_info(ctx, image):
+    """
+    Get information about an image
+    """
+    pprint.pprint(ctx.meta['hypervisor'].images_get(image))
+
+
+@images.command("delete")
+@click.argument('image', nargs=1)
+@click.pass_context
+def images_delete(ctx, image):
+    """
+    Remove an image
+    """
+    ctx.meta['hypervisor'].images_remove(image)
+    print(f"Image {image} removed")
 
 
 if __name__ == "__main__":

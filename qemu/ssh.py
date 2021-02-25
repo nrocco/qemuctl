@@ -12,6 +12,7 @@ def Ssh(host, command):
     logging.debug(f"<<< stdout: {result.stdout.strip()}")
     logging.debug(f"<<< stderr: {result.stderr.strip()}")
     result.check_returncode()
+    return result
 
 
 class Qmp:

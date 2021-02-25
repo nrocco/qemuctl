@@ -1,13 +1,33 @@
 ---
 vms:
-  test01:
+  test-disk:
     arch: x86_64
     smp:
       cores: 2
-    memory: 512
+    memory: "2G"
     drives:
       - file: "disk0.qcow2"
         if: virtio
     networks:
       - bridge: br0
         type: virtio-net
+
+  test-cdrom:
+    smbios:
+      type: 1
+      serial: 89n1jk2k
+    cdrom: /var/lib/qemu/images/Fedora-Server-netinst-x86_64-33-1.2.iso
+    boot:
+      order: d
+    networks:
+      - bridge: br0
+
+  test-pxe:
+    smbios:
+      type: 1
+      serial: 89n1jk2k
+    boot:
+      order: n
+    networks:
+      - bridge: br0
+        mac: aa:bb:cc:dd:ee:ff
