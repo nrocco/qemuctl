@@ -24,7 +24,7 @@ setup(
     },
     entry_points={
         'console_scripts': [
-            'qemuctl = qemu.__main__:main',
+            'qemuctl = qemu.cli:cli',
         ]
     },
     packages=find_packages(exclude=['tests']),
