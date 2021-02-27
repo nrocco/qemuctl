@@ -26,13 +26,13 @@ def test_vm_from_dict():
         "--no-hpet",
         "--no-shutdown",
         "--S",
+        "--chroot", "/fuu",
         "--uuid", vm["uuid"],
         "--cpu", "host",
         "--vga", "std",
         "--device", "driver=virtio-tablet-pci",
-        "--drive", "id=hd0,file=/fuu/disk01.qcow2,if=virtio",
+        "--drive", "id=hd0,file=/fuu/disk01.qcow2,if=virtio,format=qcow2",
         "--name", "test-vm",
-        "--chroot", "/fuu",
         "--boot", "order=nd",
         "--vnc", "vnc=127.0.0.1:0",
     ]
@@ -77,6 +77,6 @@ def test_vm_serialize_and_restore():
     assert vm1["chroot"] == vm2["chroot"] == "/fuu"
     assert vm1["boot"] == vm2["boot"] == {"order": "nd"}
     assert vm1["vnc"] == vm2["vnc"] == {"password": "fuubar", "vnc": "127.0.0.1:0"}
-    assert vm1["drives"] == vm2["drives"] == [{"id": "hd0", "chroot": "/fuu", "file": "/fuu/disk01.qcow2", "size": "50G", "if": "virtio"}]
-    assert vm1["nics"] == vm2["nics"] == [{'id': 'nic0', 'br': 'br0', 'mac': 'aa:bb:cc:dd:ee:ff', 'model': 'virtio-net-pci', 'type': 'bridge'}]
+    assert vm1["drives"] == vm2["drives"] == [{"id": "hd0", "chroot": "/fuu", "file": "/fuu/disk01.qcow2", "format": "qcow2", "size": "50G", "if": "virtio"}]
+    assert vm1["nics"] == vm2["nics"] == [{"id": "nic0", "br": "br0", "mac": "aa:bb:cc:dd:ee:ff", "model": "virtio-net-pci", "type": "bridge"}]
     assert json.dumps(vm1) == json.dumps(vm2)

@@ -59,6 +59,7 @@ class Vm(dict):
             "shutdown": False,
             "snapshot": False,
             "startup": False,
+            "chroot": None,
             "uuid": str(uuid.uuid4()),
             "cpu": "host",
             "vga": "std",
@@ -183,11 +184,17 @@ class NicOpt(QemuOpt):
 
 
 class DriveOpt(QemuOpt):
-    non_qemu_opts = ["chroot", "size"]
+    non_qemu_opts = ["chroot", "size", "backing_file"]
 
     def __init__(self, *args, **kwargs):
         super().__init__("drive", *args, **kwargs)
         if "if" not in self:
             self["if"] = "virtio"
-        if "file" in self and "chroot" in self and not self["file"].startswith("/"):
+        if "file" in self and "chroot" in self and self['chroot'] and not self["file"].startswith("/"):
             self["file"] = os.path.join(self["chroot"], self["file"])
+        if "format" not in self:
+            _, ext = os.path.splitext(self["file"])
+            if ext in ['.qcow2']:
+                self["format"] = "qcow2"
+            elif ext in ['.raw', '.img']:
+                self["format"] = "raw"

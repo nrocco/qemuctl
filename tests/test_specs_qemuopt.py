@@ -65,5 +65,17 @@ def test_qemuopt_nic_none():
 def test_qemuopt_drive():
     opt = DriveOpt({"file": "test.qcow2", "size": "20G"})
     assert opt.key == "drive"
-    assert opt == {"file": "test.qcow2", "size": "20G", "if": "virtio"}
-    assert opt.to_args() == ("--drive", "file=test.qcow2,if=virtio")
+    assert opt == {"file": "test.qcow2", "size": "20G", "if": "virtio", "format": "qcow2"}
+    assert opt.to_args() == ("--drive", "file=test.qcow2,if=virtio,format=qcow2")
+
+    opt = DriveOpt({"file": "test.raw", "size": "20G"})
+    assert opt.key == "drive"
+    assert opt == {"file": "test.raw", "size": "20G", "if": "virtio", "format": "raw"}
+    assert opt.to_args() == ("--drive", "file=test.raw,if=virtio,format=raw")
+
+
+def test_qemuopt_drive_format():
+    opt = DriveOpt({"file": "test.img", "size": "20G", "format": "qcow2"})
+    assert opt.key == "drive"
+    assert opt == {"file": "test.img", "size": "20G", "if": "virtio", "format": "qcow2"}
+    assert opt.to_args() == ("--drive", "file=test.img,format=qcow2,if=virtio")

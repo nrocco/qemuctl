@@ -28,18 +28,37 @@ class Hypervisor:
         return {
             "chroot": chroot,
             "pidfile": os.path.join(chroot, "pidfile"),
-            "writeconfig": os.path.join(chroot, "config.cfg"),
             "qmp": f"unix:{chroot}/qmp.sock,server=yes,wait=no",
             "vnc": {
                 "vnc": self.vnc_address,
                 "password": self.vnc_password,
             },
+            "writeconfig": os.path.join(chroot, "config.cfg"),
         }
 
     def create_vm(self, spec):
         # TODO check if vm is not already created,
         self.run(["mkdir", "-p", spec["chroot"]])
         self.run(["tee", os.path.join(spec["chroot"], "spec.json")], input=json.dumps(spec, indent=2))
+        for drive in spec["drives"]:
+            try:
+                self.run(["test", "-f", drive["file"]])
+                continue
+            except:
+                pass
+            if "size" not in drive and "backing_file" not in drive:
+                continue
+            args = ["qemu-img", "create"]
+            if "backing_file" in drive and "format" in drive:
+                args += "-F", drive["format"]
+            if "backing_file" in drive:
+                args += "-b", drive["backing_file"]
+            if "format" in drive:
+                args += "-f", drive["format"]
+            args += [drive["file"]]
+            if "size" in drive:
+                args += [drive["size"]]
+            self.run(args)
         self.run([f"qemu-system-{spec['arch']}"] + spec.to_args())
         with self.get_qmp(spec["name"]) as qmp:
             if spec["vnc"]["password"]:
