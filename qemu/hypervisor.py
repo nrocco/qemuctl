@@ -1,6 +1,7 @@
 import json
 import os
 
+from .specs import Vm
 from .qmp import Qmp
 from .ssh import Ssh
 
@@ -44,6 +45,10 @@ class Hypervisor:
             if spec["vnc"]["password"]:
                 qmp.execute("change-vnc-password", password=spec["vnc"]["password"])
             qmp.execute("cont")
+
+    def get_vm(self, name):
+        spec = self.run(["cat", os.path.join(self.state_directory, "vms", name, "spec.json")]).stdout
+        return Vm(json.loads(spec))
 
     def remove_vm(self, vm):
         # TODO check if vm is running

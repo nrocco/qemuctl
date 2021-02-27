@@ -30,14 +30,19 @@ def info(hypervisor, name):
     """
     Get information about a virtual machine
     """
+    vm = hypervisor.get_vm(name)
     with hypervisor.get_qmp(name) as qmp:
         status = qmp.execute("query-status")
         vnc = qmp.execute("query-vnc")
     print(f"{name}:")
     print(f"  Status: {status['status']}")
-    print(f"  Display: vnc://:{hypervisor.vnc_password}@{vnc['host']}:{vnc['service']}")
-    # TODO get mac address
-    # TODO get ip address
+    print(f"  Display: vnc://:{vm['vnc']['password']}@{vnc['host']}:{vnc['service']}")
+    if vm['nics']:
+        print(f"  Mac: {vm['nics'][0]['mac']}")
+        lease = [lease for lease in hypervisor.get_leases(vm['nics'][0]['br']) if lease["mac"] == vm['nics'][0]['mac']]
+        if lease:
+            print(f"  Ip: {lease[0]['ip']}")
+            print(f"  Hostname: {lease[0]['host']}")
 
 
 @vms.command("create")
