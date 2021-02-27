@@ -3,7 +3,7 @@ from setuptools import setup, find_packages
 
 
 setup(
-    name="qemufile",
+    name="qemuctl",
     description="a command line tool to manage qemu images",
     version="0.0.1",
     author="Nico Di Rocco",

@@ -1,24 +1,29 @@
-# qemufile
-a python based command line tool to manage qemu images
+qemuctl
+=======
+
+a python based command line tool to manage a plain qemu hypervisor
 
 
-## usage
+usage
+-----
 
-Use `pyqemu -h` to get help:
+Use `qemuctl --help` to get help:
 
-    usage: pyqemu [-h] [-c CONFIG_FILE] [-v] [-q] [-V]
-                  {list,start,generate-mac} ...
+    Usage: qemuctl [OPTIONS] COMMAND [ARGS]...
 
-    positional arguments:
-      {list,start,generate-mac}
-        list                list qemu boxes
-        start               start a qemu box
-        generate-mac        generate a mac address
+      Manage virtual machines using qemu
 
-    optional arguments:
-      -h, --help            show this help message and exit
-      -c CONFIG_FILE, --config CONFIG_FILE
-                            path to the config file
-      -v, --verbose         output more verbose
-      -q, --quiet           surpress all output
-      -V, --version         show program's version number and exit
+    Options:
+      --config TEXT           Location to a config file  [default: .qemuctl.json, ~/.qemuctl.json, /etc/qemuctl.json]
+      --hypervisor TEXT       Hypervisor endpoint
+      --state-directory TEXT  Directory on the hypervisor where all state is stored
+      --vnc-address TEXT      Address for VNC monitors  [default: 127.0.0.1]
+      --vnc-password TEXT     Default VNC password
+      -v, --verbose           Verbose logging, repeat to increase verbosity
+      --version               Show the version and exit.
+      --help                  Show this message and exit.
+
+    Commands:
+      images    Manage images
+      networks  Manage networks
+      vms       Manage virtual machines
