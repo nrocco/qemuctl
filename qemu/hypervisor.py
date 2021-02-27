@@ -12,8 +12,8 @@ class Hypervisor:
         self.vnc_address = vnc_address
         self.vnc_password = vnc_password
 
-    def run(self, command):
-        return Ssh(self.host, command)
+    def run(self, command, **kwargs):
+        return Ssh(self.host, command, **kwargs)
 
     def get_qmp(self, name):
         return Qmp(self.host, os.path.join(self.state_directory, "vms", name, "qmp.sock"))
@@ -27,6 +27,7 @@ class Hypervisor:
         return {
             "chroot": chroot,
             "pidfile": os.path.join(chroot, "pidfile"),
+            "writeconfig": os.path.join(chroot, "config.cfg"),
             "qmp": f"unix:{chroot}/qmp.sock,server=yes,wait=no",
             "vnc": {
                 "vnc": self.vnc_address,
@@ -37,7 +38,7 @@ class Hypervisor:
     def create_vm(self, spec):
         # TODO check if vm is not already created,
         self.run(["mkdir", "-p", spec["chroot"]])
-        # TODO serialize the vm as spec.json in the chroot on the hypervisor
+        self.run(["tee", os.path.join(spec["chroot"], "spec.json")], input=json.dumps(spec, indent=2))
         self.run([f"qemu-system-{spec['arch']}"] + spec.to_args())
         with self.get_qmp(spec["name"]) as qmp:
             if spec["vnc"]["password"]:

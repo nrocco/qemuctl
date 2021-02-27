@@ -78,8 +78,8 @@ def create(hypervisor, dry_run, **spec):
     \b
         --nic br0
         --nic type=bridge,br=br0
-        --nic br0,driver=virtio-net
-        --nic br0,driver=virtio-net,mac=aa:bb:cc:dd:ee:ff
+        --nic br0,model=virtio-net-pci
+        --nic br0,mac=aa:bb:cc:dd:ee:ff
 
     \b
     Set boot order:

@@ -22,6 +22,7 @@ QEMU_PLAIN_OPTS = [
     "qmp",
     "uuid",
     "vga",
+    "writeconfig",
 ]
 
 QEMU_COMPLEX_OPTS = [
@@ -174,8 +175,8 @@ class NicOpt(QemuOpt):
             return
         if "br" in self and "type" not in self:
             self["type"] = "bridge"
-        if "driver" not in self:
-            self["driver"] = "virtio-net"
+        if "model" not in self:
+            self["model"] = "virtio-net-pci"
         if "mac" not in self:
             self["mac"] = "52:54:" + ":".join("%02x" % random.randint(0, 255) for x in range(4))
 

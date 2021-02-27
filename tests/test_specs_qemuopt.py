@@ -51,8 +51,8 @@ def test_qemuopt_vnc():
 def test_qemuopt_nic():
     opt = NicOpt("br0")
     assert opt.key == "nic"
-    assert opt == {"br": "br0", "type": "bridge", "driver": "virtio-net", "mac": opt["mac"]}
-    assert opt.to_args() == ("--nic", f"br=br0,type=bridge,driver=virtio-net,mac={opt['mac']}")
+    assert opt == {"br": "br0", "type": "bridge", "model": "virtio-net-pci", "mac": opt["mac"]}
+    assert opt.to_args() == ("--nic", f"br=br0,type=bridge,model=virtio-net-pci,mac={opt['mac']}")
 
 
 def test_qemuopt_drive():
