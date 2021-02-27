@@ -3,7 +3,6 @@ import os
 
 from .qmp import Qmp
 from .ssh import Ssh
-from qemu.utils import dict_to_qemu_arg
 
 
 class Hypervisor:
@@ -17,61 +16,32 @@ class Hypervisor:
         return Ssh(self.host, command)
 
     def get_qmp(self, name):
-        return Qmp(self.host, os.path.join(self.state_directory, 'vms', name, "qmp.sock"))
+        return Qmp(self.host, os.path.join(self.state_directory, "vms", name, "qmp.sock"))
 
     def list_vms(self):
-        result = self.run(["ls", os.path.join(self.state_directory, 'vms')])
+        result = self.run(["ls", os.path.join(self.state_directory, "vms")])
         return result.stdout.splitlines()
+
+    def default_opts_for_vm(self, name):
+        chroot = os.path.join(self.state_directory, "vms", name)
+        return {
+            "chroot": chroot,
+            "pidfile": os.path.join(chroot, "pidfile"),
+            "qmp": f"unix:{chroot}/qmp.sock,server=yes,wait=no",
+            "vnc": {
+                "vnc": self.vnc_address,
+                "password": self.vnc_password,
+            },
+        }
 
     def create_vm(self, spec):
         # TODO check if vm is not already created,
-        vm_chroot = os.path.join(self.state_directory, 'vms', spec['name'])
-        args = [
-            f"qemu-system-{spec['arch']}",
-            "-enable-kvm",
-            "-daemonize",
-            "-S",
-            "-nodefaults",
-            "-chroot", vm_chroot,
-            "-name", spec['name'],
-            "-qmp", "unix:{},server,nowait".format(os.path.join(vm_chroot, 'qmp.sock')),
-            "-pidfile", os.path.join(vm_chroot, 'pidfile'),
-            "-m", dict_to_qemu_arg(spec['memory']),
-            "-uuid", spec['uuid'],
-            "-vga", spec['vga'],
-            "-cpu", spec['cpu'],
-            "-smp", dict_to_qemu_arg(spec['smp']),
-            "-rtc", dict_to_qemu_arg(spec['rtc']),
-        ]
-        if 'spec' in spec and not spec['hpet']:
-            args += ["-no-hpet"]
-        if 'shutdown' in spec and not spec['shutdown']:
-            args += ["-no-shutdown"]
-        if self.vnc_address:
-            args += "-display", f"vnc={self.vnc_address}:0,to=100,password"
-        if 'smbios' in spec and spec['smbios']:
-            args += "-smbios", dict_to_qemu_arg(spec['smbios'])
-        if 'boot' in spec and spec['boot']:
-            args += "-boot", dict_to_qemu_arg(spec['boot'])
-        if 'cdrom' in spec and spec['cdrom']:
-            args += "-cdrom", dict_to_qemu_arg(spec['cdrom'])
-        if 'snapshot' in spec and spec['snapshot']:
-            args += ["-snapshot"]
-        for drive in spec['drives']:
-            if 'file' in drive and not drive['file'].startswith('/'):
-                drive['file'] = os.path.join(vm_chroot, drive['file'])
-            args += "-drive", dict_to_qemu_arg(drive)
-        for network in spec['networks']:
-            args += "-netdev", f"type={network['type']},id={network['id']},br={network['bridge']}"
-            args += "-device", f"driver={network['driver']},netdev={network['id']},mac={network['mac']}"
-        for device in spec['devices']:
-            args += "-device", dict_to_qemu_arg(device)
-        # print(" ".join(args))
-        # return
-        self.run(["mkdir", "-p", vm_chroot])
-        self.run(args)
+        self.run(["mkdir", "-p", spec['chroot']])
+        # TODO serialize the vm as spec.json in the chroot on the hypervisor
+        self.run(spec.to_args())
         with self.get_qmp(spec['name']) as qmp:
-            qmp.execute("change-vnc-password", password=self.vnc_password)
+            if spec['vnc']['password']:
+                qmp.execute("change-vnc-password", password=spec['vnc']['password'])
             qmp.execute("cont")
 
     def remove_vm(self, vm):

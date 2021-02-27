@@ -1,21 +1,8 @@
 import click
-import pprint
+import json
 
 from .utils import pass_hypervisor
-from qemu.utils import qemu_arg_to_dict
 from qemu.specs import Vm
-
-
-def qemu_option(ctx, param, value):
-    if not value:
-        return value
-    if type(value) is tuple:
-        return [qemu_arg_to_dict(value) for value in value]
-    if param.name == 'cdrom' and '=' not in value:
-        value = f"file={value}"
-    elif param.name == 'memory' and '=' not in value:
-        value = f"size={value}"
-    return qemu_arg_to_dict(value)
 
 
 @click.group()
@@ -56,15 +43,15 @@ def info(hypervisor, name):
 @vms.command("create")
 @click.option('--dry-run', is_flag=True, help="Do not create the virtual machine")
 @click.option('--snapshot', is_flag=True, help="write to temporary files instead of disk image files")
-@click.option('--memory', default="size=1G", callback=qemu_option, help="configure RAM")
-@click.option('--smp', default="cores=2", callback=qemu_option, help="configure CPU topology")
-@click.option('--rtc', default="base=utc,driftfix=slew", callback=qemu_option, help="configure the clock")
-@click.option('--smbios', default=None, callback=qemu_option, help="specify SMBIOS fields")
-@click.option('--boot', default=None, callback=qemu_option, help="configure boot order")
-@click.option('--cdrom', default=None, callback=qemu_option, help="use file as IDE cdrom image")
-@click.option('--device', 'devices', multiple=True, callback=qemu_option, default=[], help="configure one or more devices")
-@click.option('--drive', 'drives', multiple=True, callback=qemu_option, default=[], help="configure one or more HDDs")
-@click.option('--network', 'networks', multiple=True, callback=qemu_option, default=[], help="configure one or more NICs")
+@click.option('--memory', default="size=1G", help="configure RAM")
+@click.option('--smp', default="cores=2", help="configure CPU topology")
+@click.option('--rtc', default="base=utc,driftfix=slew", help="configure the clock")
+@click.option('--smbios', default=None, help="specify SMBIOS fields")
+@click.option('--boot', default=None, help="configure boot order")
+@click.option('--cdrom', default=None, help="use file as IDE cdrom image")
+@click.option('--device', 'devices', multiple=True, default=[], help="configure one or more devices")
+@click.option('--drive', 'drives', multiple=True, default=[], help="configure one or more HDDs")
+@click.option('--nic', 'nics', multiple=True, default=[], help="configure one or more NICs")
 @click.argument('name')
 @pass_hypervisor
 def create(hypervisor, dry_run, **spec):
@@ -80,6 +67,7 @@ def create(hypervisor, dry_run, **spec):
     \b
     Add drives:
     \b
+        --drive disk01.qcow2                                            # if exists ignore else create and assume size X
         --drive file=disk01.qcow2                                       # if exists ignore else create and assume size X
         --drive file=disk01.qcow2,size=50G                              # if exists ignore else create with size 50G
         --drive file=/fuu/bar/test.raw                                  # fail if not exists
@@ -89,9 +77,10 @@ def create(hypervisor, dry_run, **spec):
     \b
     Add networks:
     \b
-        --network bridge=br0
-        --network bridge=br0,driver=virtio-net
-        --network bridge=br0,driver=virtio-net,mac=aa:bb:cc:dd:ee:ff
+        --nic br0
+        --nic type=bridge,br=br0
+        --nic br0,driver=virtio-net
+        --nic br0,driver=virtio-net,mac=aa:bb:cc:dd:ee:ff
 
     \b
     Set boot order:
@@ -109,9 +98,10 @@ def create(hypervisor, dry_run, **spec):
     \b
         --cdrom /var/lib/qemu/images/Fedora-Server-netinst-x86_64-33-1.2.iso
     """
-    vm = Vm(spec)
+    vm = Vm(spec, hypervisor.default_opts_for_vm(spec['name']))
     if dry_run:
-        pprint.pprint(vm)
+        print(json.dumps(vm, indent=2))
+        print(f"qemu-system-{vm['arch']} " + " ".join(vm.to_args()))
     else:
         hypervisor.create_vm(vm)
     print(f"Vm {vm['name']} created")
