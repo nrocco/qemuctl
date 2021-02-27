@@ -169,6 +169,9 @@ class VncOpt(QemuOpt):
 class NicOpt(QemuOpt):
     def __init__(self, *args, **kwargs):
         super().__init__("nic", *args, **kwargs)
+        if 'type' in self and self['type'] == 'none':
+            del self['id']
+            return
         if "br" in self and "type" not in self:
             self["type"] = "bridge"
         if "driver" not in self:

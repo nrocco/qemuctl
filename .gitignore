@@ -7,4 +7,4 @@
 /htmlcov
 /.coverage
 /coverage.xml
-/.qemuctl.yaml
+/.qemuctl.json

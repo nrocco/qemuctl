@@ -51,14 +51,13 @@ def info(hypervisor, name):
 @click.option("--cdrom", default=None, help="use file as IDE cdrom image")
 @click.option("--device", "devices", multiple=True, default=[], help="configure one or more devices")
 @click.option("--drive", "drives", multiple=True, default=[], help="configure one or more HDDs")
-@click.option("--nic", "nics", multiple=True, default=[], help="configure one or more NICs")
+@click.option("--nic", "nics", multiple=True, default=["type=none"], help="configure one or more NICs")
 @click.argument("name")
 @pass_hypervisor
 def create(hypervisor, dry_run, **spec):
     """
-    Create a virtual machine:
+    Create a virtual machine
 
-    \b
     Change cores or memory:
     \b
         --smp cores=2

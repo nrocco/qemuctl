@@ -11,7 +11,7 @@ from .utils import read_config
 
 
 @click.group(context_settings=dict(auto_envvar_prefix="QEMU", show_default=True))
-@click.option("--config", default=[".qemuctl.yaml", "~/.qemuctl.yaml", "/etc/qemuctl.yaml"], help="Location to a config file", is_eager=True, callback=read_config)
+@click.option("--config", default=[".qemuctl.json", "~/.qemuctl.json", "/etc/qemuctl.json"], help="Location to a config file", is_eager=True, callback=read_config)
 @click.option("--hypervisor", help="Hypervisor endpoint")
 @click.option("--state-directory", default="/var/lib/qemu", help="Directory on the hypervisor where all state is stored")
 @click.option("--vnc-address", default="127.0.0.1", help="Address for VNC monitors")

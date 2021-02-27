@@ -1,6 +1,6 @@
 import click
 import os
-import yaml
+import json
 
 from qemu.hypervisor import Hypervisor
 
@@ -15,7 +15,7 @@ def read_config(ctx, param, value):
         if not os.path.exists(file):
             continue
         with open(file) as config_file:
-            ctx.default_map = yaml.safe_load(config_file)
+            ctx.default_map = json.load(config_file)
             return
 
 
