@@ -1,5 +1,5 @@
 import click
-import pprint
+import json
 
 from .utils import pass_hypervisor
 
@@ -22,17 +22,17 @@ def images_list(hypervisor):
 
 
 @images.command("info")
-@click.argument('image', nargs=1)
+@click.argument("image", nargs=1)
 @pass_hypervisor
 def images_info(hypervisor, image):
     """
     Get information about an image
     """
-    pprint.pprint(hypervisor.get_image(image))
+    print(json.dumps(hypervisor.get_image(image), indent=2))
 
 
 @images.command("delete")
-@click.argument('image', nargs=1)
+@click.argument("image", nargs=1)
 @pass_hypervisor
 def images_delete(hypervisor, image):
     """

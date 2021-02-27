@@ -23,7 +23,7 @@ def cli(ctx, verbose, config, hypervisor, state_directory, vnc_address, vnc_pass
     """
     Manage virtual machines using qemu
     """
-    logging.basicConfig(level=max(30 - verbose * 10, 10), format='[%(asctime)-15s] [%(levelname)s] %(message)s')
+    logging.basicConfig(level=max(30 - verbose * 10, 10), format="[%(asctime)-15s] [%(levelname)s] %(message)s")
     ctx.obj = Hypervisor(hypervisor, state_directory, vnc_address, vnc_password)
 
 

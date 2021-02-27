@@ -44,19 +44,19 @@ def test_qemuopt_from_string_nokey():
 def test_qemuopt_vnc():
     opt = VncOpt("vnc=127.0.0.1,to=100,password=aabcd")
     assert opt.key == "vnc"
-    assert opt == {"vnc": "127.0.0.1:0", "to": "100", 'password': 'aabcd'}
+    assert opt == {"vnc": "127.0.0.1:0", "to": "100", "password": "aabcd"}
     assert opt.to_args() == ("--vnc", "vnc=127.0.0.1:0,to=100,password=yes")
 
 
 def test_qemuopt_nic():
     opt = NicOpt("br0")
     assert opt.key == "nic"
-    assert opt == {"br": "br0", "type": "bridge", "driver": "virtio-net", "mac": opt['mac']}
+    assert opt == {"br": "br0", "type": "bridge", "driver": "virtio-net", "mac": opt["mac"]}
     assert opt.to_args() == ("--nic", f"br=br0,type=bridge,driver=virtio-net,mac={opt['mac']}")
 
 
 def test_qemuopt_drive():
     opt = DriveOpt({"file": "test.qcow2", "size": "20G"})
     assert opt.key == "drive"
-    assert opt == {"file": "test.qcow2", "size": "20G", 'if': 'virtio'}
+    assert opt == {"file": "test.qcow2", "size": "20G", "if": "virtio"}
     assert opt.to_args() == ("--drive", "file=test.qcow2,if=virtio")

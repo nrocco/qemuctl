@@ -1,5 +1,5 @@
 import click
-import pprint
+import json
 
 from .utils import pass_hypervisor
 
@@ -22,17 +22,17 @@ def networks_list(hypervisor):
 
 
 @networks.command("leases")
-@click.argument('network')
+@click.argument("network")
 @pass_hypervisor
 def networks_leases(hypervisor, network):
     """
     List leases for a network
     """
-    pprint.pprint(hypervisor.get_leases(network))
+    print(json.dumps(hypervisor.get_leases(network), indent=2))
 
 
 @networks.command("create")
-@click.argument('network')
+@click.argument("network")
 @pass_hypervisor
 def networks_create(hypervisor, network):
     """
@@ -55,7 +55,7 @@ def networks_create(hypervisor, network):
 
 
 @networks.command("start")
-@click.argument('network')
+@click.argument("network")
 @pass_hypervisor
 def networks_start(hypervisor, network):
     """

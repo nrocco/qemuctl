@@ -36,30 +36,30 @@ class Hypervisor:
 
     def create_vm(self, spec):
         # TODO check if vm is not already created,
-        self.run(["mkdir", "-p", spec['chroot']])
+        self.run(["mkdir", "-p", spec["chroot"]])
         # TODO serialize the vm as spec.json in the chroot on the hypervisor
-        self.run(spec.to_args())
-        with self.get_qmp(spec['name']) as qmp:
-            if spec['vnc']['password']:
-                qmp.execute("change-vnc-password", password=spec['vnc']['password'])
+        self.run([f"qemu-system-{spec['arch']}"] + spec.to_args())
+        with self.get_qmp(spec["name"]) as qmp:
+            if spec["vnc"]["password"]:
+                qmp.execute("change-vnc-password", password=spec["vnc"]["password"])
             qmp.execute("cont")
 
     def remove_vm(self, vm):
         # TODO check if vm is running
         with self.get_qmp(vm) as qmp:
             qmp.execute("quit")
-        self.run(["rm", "-rf", os.path.join(self.state_directory, 'vms', vm)])
+        self.run(["rm", "-rf", os.path.join(self.state_directory, "vms", vm)])
 
     def list_images(self):
-        result = self.run(["ls", "-lh", os.path.join(self.state_directory, 'images')])
+        result = self.run(["ls", "-lh", os.path.join(self.state_directory, "images")])
         return result.stdout.splitlines()
 
     def get_image(self, image):
-        result = self.run(["qemu-img", "info", "--backing-chain", "--output=json", os.path.join(self.state_directory, 'images', image)])
+        result = self.run(["qemu-img", "info", "--backing-chain", "--output=json", os.path.join(self.state_directory, "images", image)])
         return json.loads(result.stdout)
 
     def remove_image(self, image):
-        self.run(["rm", os.path.join(self.state_directory, 'images', image)])
+        self.run(["rm", os.path.join(self.state_directory, "images", image)])
 
     def get_leases(self, network):
         leases = []
@@ -67,13 +67,14 @@ class Hypervisor:
         for line in result.stdout.splitlines():
             data = line.split(" ")
             leases.append({
-                'timestamp': data[0],
-                'mac': data[1],
-                'ip': data[2],
-                'host': data[3],
-                'id': data[4],
+                "timestamp": data[0],
+                "mac": data[1],
+                "ip": data[2],
+                "host": data[3],
+                "id": data[4],
             })
         return leases
 
     def start_network(self, network):
-        self.run(["dnsmasq", "--conf-file={}".format(os.path.join(self.state_directory, "networks", network, f"{network}.conf"))])
+        conf_file = os.path.join(self.state_directory, "networks", network, f"{network}.conf")
+        self.run(["dnsmasq", f"--conf-file={conf_file}"])

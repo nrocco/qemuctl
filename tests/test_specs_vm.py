@@ -38,13 +38,13 @@ def test_vm_from_dict():
 
 def test_vm_with_kvm_disabled():
     vm = Vm(kvm=False)
-    assert False == vm["kvm"]
+    assert False is vm["kvm"]
     assert "--enable-kvm" not in vm.to_args()
 
 
 def test_vm_with_shutdown_enabled():
     vm = Vm(shutdown=True)
-    assert True == vm["shutdown"]
+    assert True is vm["shutdown"]
     assert "--no-shutdown" not in vm.to_args()
 
 

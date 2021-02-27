@@ -24,7 +24,7 @@ def list_(hypervisor):
 
 
 @vms.command("info")
-@click.argument('name')
+@click.argument("name")
 @pass_hypervisor
 def info(hypervisor, name):
     """
@@ -33,26 +33,26 @@ def info(hypervisor, name):
     with hypervisor.get_qmp(name) as qmp:
         status = qmp.execute("query-status")
         vnc = qmp.execute("query-vnc")
-    print("{}:".format(name))
-    print("  Status: {status}".format(**status))
-    print("  Display: vnc://:{password}@{host}:{service}".format(**vnc, password=hypervisor.vnc_password))
+    print(f"{name}:")
+    print(f"  Status: {status['status']}")
+    print(f"  Display: vnc://:{hypervisor.vnc_password}@{vnc['host']}:{vnc['service']}")
     # TODO get mac address
     # TODO get ip address
 
 
 @vms.command("create")
-@click.option('--dry-run', is_flag=True, help="Do not create the virtual machine")
-@click.option('--snapshot', is_flag=True, help="write to temporary files instead of disk image files")
-@click.option('--memory', default="size=1G", help="configure RAM")
-@click.option('--smp', default="cores=2", help="configure CPU topology")
-@click.option('--rtc', default="base=utc,driftfix=slew", help="configure the clock")
-@click.option('--smbios', default=None, help="specify SMBIOS fields")
-@click.option('--boot', default=None, help="configure boot order")
-@click.option('--cdrom', default=None, help="use file as IDE cdrom image")
-@click.option('--device', 'devices', multiple=True, default=[], help="configure one or more devices")
-@click.option('--drive', 'drives', multiple=True, default=[], help="configure one or more HDDs")
-@click.option('--nic', 'nics', multiple=True, default=[], help="configure one or more NICs")
-@click.argument('name')
+@click.option("--dry-run", is_flag=True, help="Do not create the virtual machine")
+@click.option("--snapshot", is_flag=True, help="write to temporary files instead of disk image files")
+@click.option("--memory", default="size=1G", help="configure RAM")
+@click.option("--smp", default="cores=2", help="configure CPU topology")
+@click.option("--rtc", default="base=utc,driftfix=slew", help="configure the clock")
+@click.option("--smbios", default=None, help="specify SMBIOS fields")
+@click.option("--boot", default=None, help="configure boot order")
+@click.option("--cdrom", default=None, help="use file as IDE cdrom image")
+@click.option("--device", "devices", multiple=True, default=[], help="configure one or more devices")
+@click.option("--drive", "drives", multiple=True, default=[], help="configure one or more HDDs")
+@click.option("--nic", "nics", multiple=True, default=[], help="configure one or more NICs")
+@click.argument("name")
 @pass_hypervisor
 def create(hypervisor, dry_run, **spec):
     """
@@ -98,7 +98,7 @@ def create(hypervisor, dry_run, **spec):
     \b
         --cdrom /var/lib/qemu/images/Fedora-Server-netinst-x86_64-33-1.2.iso
     """
-    vm = Vm(spec, hypervisor.default_opts_for_vm(spec['name']))
+    vm = Vm(spec, hypervisor.default_opts_for_vm(spec["name"]))
     if dry_run:
         print(json.dumps(vm, indent=2))
         print(f"qemu-system-{vm['arch']} " + " ".join(vm.to_args()))
@@ -108,7 +108,7 @@ def create(hypervisor, dry_run, **spec):
 
 
 @vms.command("start")
-@click.argument('name')
+@click.argument("name")
 @pass_hypervisor
 def start(hypervisor, name):
     """
@@ -120,7 +120,7 @@ def start(hypervisor, name):
 
 
 @vms.command("restart")
-@click.argument('name')
+@click.argument("name")
 @pass_hypervisor
 def restart(hypervisor, name):
     """
@@ -132,7 +132,7 @@ def restart(hypervisor, name):
 
 
 @vms.command("stop")
-@click.argument('name')
+@click.argument("name")
 @pass_hypervisor
 def stop(hypervisor, name):
     """
@@ -144,9 +144,9 @@ def stop(hypervisor, name):
 
 
 @vms.command("monitor")
-@click.argument('name')
-@click.argument('command')
-@click.argument('arguments', nargs=-1)
+@click.argument("name")
+@click.argument("command")
+@click.argument("arguments", nargs=-1)
 @pass_hypervisor
 def monitor(hypervisor, name, command, arguments):
     """
@@ -157,14 +157,14 @@ def monitor(hypervisor, name, command, arguments):
     qom-list 'path=/machine/peripheral-anon/device[0]'
     qom-get 'path=/machine/peripheral-anon/device[0]' property=mac
     """
-    arguments = {key: value for key, value in [arg.split('=') for arg in arguments]}
+    arguments = {key: value for key, value in [arg.split("=") for arg in arguments]}
     with hypervisor.get_qmp(name) as qmp:
         result = qmp.execute(command, **arguments)
-        pprint.pprint(result)
+        print(json.dumps(result, indent=2))
 
 
 @vms.command("destroy")
-@click.argument('name')
+@click.argument("name")
 @pass_hypervisor
 def destroy(hypervisor, name):
     """
