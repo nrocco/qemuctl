@@ -1,3 +1,5 @@
+import json
+
 from qemu.specs import Vm
 
 
@@ -58,3 +60,23 @@ def test_vm_from_string():
     vm = Vm({"boot": "order=n"})
     assert vm["boot"] == {"order": "n"}
     assert "order=n" in vm.to_args()
+
+
+def test_vm_serialize_and_restore():
+    vm1 = Vm({
+        "name": "test-vm",
+        "chroot": "/fuu",
+        "boot": "order=nd",
+        "drives": ["disk01.qcow2,size=50G"],
+        "nics": ["br0,mac=aa:bb:cc:dd:ee:ff,model=virtio-net-pci"],
+        "vnc": "127.0.0.1,password=fuubar",
+    })
+    vm2 = Vm(json.loads(json.dumps(vm1)))
+    assert vm1["name"] == vm2["name"] == "test-vm"
+    assert vm1["uuid"] == vm2["uuid"]
+    assert vm1["chroot"] == vm2["chroot"] == "/fuu"
+    assert vm1["boot"] == vm2["boot"] == {"order": "nd"}
+    assert vm1["vnc"] == vm2["vnc"] == {"password": "fuubar", "vnc": "127.0.0.1:0"}
+    assert vm1["drives"] == vm2["drives"] == [{"id": "hd0", "chroot": "/fuu", "file": "/fuu/disk01.qcow2", "size": "50G", "if": "virtio"}]
+    assert vm1["nics"] == vm2["nics"] == [{'id': 'nic0', 'br': 'br0', 'mac': 'aa:bb:cc:dd:ee:ff', 'model': 'virtio-net-pci', 'type': 'bridge'}]
+    assert json.dumps(vm1) == json.dumps(vm2)

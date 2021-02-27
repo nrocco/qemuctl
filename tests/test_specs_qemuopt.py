@@ -55,6 +55,13 @@ def test_qemuopt_nic():
     assert opt.to_args() == ("--nic", f"br=br0,type=bridge,model=virtio-net-pci,mac={opt['mac']}")
 
 
+def test_qemuopt_nic_none():
+    opt = NicOpt("type=none,id=nic0")
+    assert opt.key == "nic"
+    assert opt == {"type": "none"}
+    assert opt.to_args() == ("--nic", "type=none")
+
+
 def test_qemuopt_drive():
     opt = DriveOpt({"file": "test.qcow2", "size": "20G"})
     assert opt.key == "drive"

@@ -89,7 +89,8 @@ class Vm(dict):
                 if key not in spec:
                     spec[key] = []
                 spec[key] += [QemuOpt(key.rstrip("s"), opt) for opt in value]
-        spec["devices"] += [QemuOpt("device", driver="virtio-tablet-pci")]  # TODO hard coded?
+        if not [device for device in spec["devices"] if device["driver"] == "virtio-tablet-pci"]:
+            spec["devices"] += [QemuOpt("device", driver="virtio-tablet-pci")]
         super().__init__(spec)
 
     def to_args(self):
