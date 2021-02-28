@@ -46,6 +46,7 @@ class Hypervisor:
             "qmp": f"unix:{self.get_vms_dir(name, 'qmp.sock')},server=yes,wait=no",
             "vnc": {
                 "vnc": self.vnc_address,
+                "to": "100",
                 "password": self.vnc_password,
             },
             "writeconfig": self.get_vms_dir(name, "config.cfg"),

@@ -40,7 +40,7 @@ def show(hypervisor, name):
     print(f"  Display: vnc://:{vm['vnc']['password']}@{vnc['host']}:{vnc['service']}")
     if vm['nics']:
         print(f"  Mac: {vm['nics'][0]['mac']}")
-        lease = [lease for lease in hypervisor.get_leases(vm['nics'][0]['br']) if lease["mac"] == vm['nics'][0]['mac']]
+        lease = [lease for lease in hypervisor.get_leases(vm['nics'][0]['br']) if lease["mac"] == vm['nics'][0]['mac']]  # TODO this assumes dhcp is enabled on bridge
         if lease:
             print(f"  Ip: {lease[0]['ip']}")
             print(f"  Hostname: {lease[0]['host']}")
