@@ -56,24 +56,7 @@ class Hypervisor:
         self.run(["mkdir", "-p", spec["chroot"]])
         self.run(["tee", self.get_vms_dir(spec["name"], "spec.json")], input=json.dumps(spec, indent=2))
         for drive in spec["drives"]:
-            try:
-                self.run(["test", "-f", drive["file"]])
-                continue
-            except:
-                pass
-            if "size" not in drive and "backing_file" not in drive:
-                continue
-            args = ["qemu-img", "create"]
-            if "backing_file" in drive and "format" in drive:
-                args += "-F", drive["format"]
-            if "backing_file" in drive:
-                args += "-b", drive["backing_file"]
-            if "format" in drive:
-                args += "-f", drive["format"]
-            args += [drive["file"]]
-            if "size" in drive:
-                args += [drive["size"]]
-            self.run(args)
+            self.create_vm_drive(drive)
         self.run([f"qemu-system-{spec['arch']}"] + spec.to_args())
         with self.get_qmp(spec["name"]) as qmp:
             if spec["vnc"]["password"]:
@@ -81,6 +64,26 @@ class Hypervisor:
             qmp.execute("cont")
             vnc = qmp.execute("query-vnc")
         return vnc
+
+    def create_vm_drive(self, drive):
+        try:
+            self.run(["test", "-f", drive["file"]])
+            return
+        except subprocess.CalledProcessError:
+            pass
+        if "size" not in drive and "backing_file" not in drive:
+            return
+        args = ["qemu-img", "create"]
+        if "backing_file" in drive and "format" in drive:
+            args += "-F", drive["format"]
+        if "backing_file" in drive:
+            args += "-b", drive["backing_file"]
+        if "format" in drive:
+            args += "-f", drive["format"]
+        args += [drive["file"]]
+        if "size" in drive:
+            args += [drive["size"]]
+        self.run(args)
 
     def get_vm(self, name):
         spec = self.run(["cat", self.get_vms_dir(name, "spec.json")]).stdout
