@@ -8,28 +8,28 @@ from qemu.specs import Vm
 @click.group()
 def vms():
     """
-    Manage virtual machines
+    Manage virtual machines.
     """
     pass
 
 
-@vms.command("list")
+@vms.command()
 @click.option("--details", is_flag=True, help="Show more details")
 @pass_hypervisor
-def list_(hypervisor, details):
+def ls(hypervisor, details):
     """
-    List virtual machines
+    List virtual machines.
     """
-    for vm in hypervisor.list_vms(details):
-        print(vm)
+    for name in hypervisor.list_vms(details):
+        print(name)
 
 
-@vms.command("info")
+@vms.command()
 @click.argument("name")
 @pass_hypervisor
-def info(hypervisor, name):
+def show(hypervisor, name):
     """
-    Get information about a virtual machine
+    Show information about a virtual machine.
     """
     vm = hypervisor.get_vm(name)
     with hypervisor.get_qmp(name) as qmp:
@@ -46,7 +46,7 @@ def info(hypervisor, name):
             print(f"  Hostname: {lease[0]['host']}")
 
 
-@vms.command("create")
+@vms.command()
 @click.option("--dry-run", is_flag=True, help="Do not create the virtual machine")
 @click.option("--snapshot", is_flag=True, help="write to temporary files instead of disk image files")
 @click.option("--memory", default="size=1G", help="configure RAM")
@@ -62,7 +62,7 @@ def info(hypervisor, name):
 @pass_hypervisor
 def create(hypervisor, dry_run, **spec):
     """
-    Create a virtual machine
+    Create a virtual machine.
 
     Change cores or memory:
     \b
@@ -113,50 +113,50 @@ def create(hypervisor, dry_run, **spec):
     print(f"Vm {vm['name']} created")
 
 
-@vms.command("start")
+@vms.command()
 @click.argument("name")
 @pass_hypervisor
 def start(hypervisor, name):
     """
-    Start a virtual machine
+    Start a virtual machine.
     """
     with hypervisor.get_qmp(name) as qmp:
         qmp.execute("cont")
     print(f"Vm {name} started")
 
 
-@vms.command("restart")
+@vms.command()
 @click.argument("name")
 @pass_hypervisor
 def restart(hypervisor, name):
     """
-    Restart a virtual machine
+    Restart a virtual machine.
     """
     with hypervisor.get_qmp(name) as qmp:
         qmp.execute("system_reset")
     print(f"Vm {name} restarted")
 
 
-@vms.command("stop")
+@vms.command()
 @click.argument("name")
 @pass_hypervisor
 def stop(hypervisor, name):
     """
-    Stop a virtual machine
+    Stop a virtual machine.
     """
     with hypervisor.get_qmp(name) as qmp:
         qmp.execute("stop")
     print(f"Vm {name} stopped")
 
 
-@vms.command("monitor")
+@vms.command()
 @click.argument("name")
 @click.argument("command")
 @click.argument("arguments", nargs=-1)
 @pass_hypervisor
 def monitor(hypervisor, name, command, arguments):
     """
-    Send qmp commands to a virtual machine
+    Send qmp commands to a virtual machine.
 
     \b
     system_powerdown
@@ -169,12 +169,12 @@ def monitor(hypervisor, name, command, arguments):
         print(json.dumps(result, indent=2))
 
 
-@vms.command("destroy")
+@vms.command()
 @click.argument("name")
 @pass_hypervisor
 def destroy(hypervisor, name):
     """
-    Destroy a virtual machine
+    Destroy a virtual machine.
     """
-    hypervisor.remove_vm(name)
-    print(f"Vm {name} destroyed")
+    hypervisor.destroy_vm(name)
+    print(f"Vm {name} destroyd")

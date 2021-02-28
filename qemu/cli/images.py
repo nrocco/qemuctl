@@ -7,38 +7,38 @@ from .utils import pass_hypervisor
 @click.group()
 def images():
     """
-    Manage images
+    Manage images.
     """
     pass
 
 
-@images.command("list")
+@images.command()
 @click.option("--details", is_flag=True, help="Show more details")
 @pass_hypervisor
-def list_(hypervisor, details):
+def ls(hypervisor, details):
     """
-    List all available images
+    List all available images.
     """
-    for image in hypervisor.list_images(details):
-        print(image)
+    for name in hypervisor.list_images(details):
+        print(name)
 
 
-@images.command("info")
-@click.argument("image")
+@images.command()
+@click.argument("name")
 @pass_hypervisor
-def info(hypervisor, image):
+def show(hypervisor, name):
     """
-    Get information about an image
+    Show information about an image.
     """
-    print(json.dumps(hypervisor.get_image(image), indent=2))
+    print(json.dumps(hypervisor.get_image(name), indent=2))
 
 
-@images.command("delete")
-@click.argument("image")
+@images.command()
+@click.argument("name")
 @pass_hypervisor
-def delete(hypervisor, image):
+def delete(hypervisor, name):
     """
-    Remove an image
+    Delete an image.
     """
-    hypervisor.remove_image(image)
-    print(f"Image {image} removed")
+    hypervisor.delete_image(name)
+    print(f"Image {name} deleted")

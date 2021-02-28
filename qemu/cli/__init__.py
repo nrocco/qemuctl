@@ -21,7 +21,7 @@ from .utils import read_config
 @click.pass_context
 def cli(ctx, verbose, config, hypervisor, state_directory, vnc_address, vnc_password):
     """
-    Manage virtual machines using qemu
+    Manage virtual machines using qemu.
     """
     logging.basicConfig(level=max(30 - verbose * 10, 10), format="[%(asctime)-15s] [%(levelname)s] %(message)s")
     ctx.obj = Hypervisor(hypervisor, state_directory, vnc_address, vnc_password)

@@ -84,7 +84,7 @@ class Hypervisor:
         spec = self.run(["cat", self.get_vms_dir(name, "spec.json")]).stdout
         return Vm(json.loads(spec))
 
-    def remove_vm(self, name):
+    def destroy_vm(self, name):
         # TODO check if name is running
         with self.get_qmp(name) as qmp:
             qmp.execute("quit")
@@ -94,7 +94,7 @@ class Hypervisor:
         result = self.run(["qemu-img", "info", "--backing-chain", "--output=json", self.get_images_dir(image)])
         return json.loads(result.stdout)
 
-    def remove_image(self, image):
+    def delete_image(self, image):
         self.run(["rm", self.get_images_dir(image)])
 
     def get_leases(self, network):
@@ -111,6 +111,17 @@ class Hypervisor:
             })
         return leases
 
-    def start_network(self, network):
-        conf_file = self.get_networks_dir(network, f"{network}.conf")
-        self.run(["dnsmasq", f"--conf-file={conf_file}"])
+    def create_network(self, name, dhcp=False, address=None):
+        self.run(["mkdir", self.get_networks_dir(name)])
+        self.run(["ip", "link", "add", "dev", name, "type", "bridge", "stp_state", "1"])
+        if address:
+            self.run(["ip", "addr", "add", address, "dev", name])
+        if dhcp:
+            # TODO: create a dnsmasq config file
+            conf_file = self.get_networks_dir(network, f"{network}.conf")
+            self.run(["echo", "dnsmasq", f"--conf-file={conf_file}"])  # TODO implement this
+
+    def destroy_network(self, name):
+        # TODO kill dnsmasq if running
+        self.run(["ip", "link", "delete", name])
+        self.run(["rm", "-rf", self.get_networks_dir(name)])
