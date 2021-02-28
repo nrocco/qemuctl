@@ -145,7 +145,7 @@ def stop(hypervisor, name):
     Stop a virtual machine.
     """
     with hypervisor.get_qmp(name) as qmp:
-        qmp.execute("stop")
+        qmp.execute("quit")
     print(f"Vm {name} stopped")
 
 
