@@ -13,18 +13,20 @@ def networks():
 
 
 @networks.command("list")
+@click.option("--details", is_flag=True, help="Show more details")
 @pass_hypervisor
-def networks_list(hypervisor):
+def list_(hypervisor, details):
     """
     List all available networks
     """
-    pass  # TODO implement this
+    for network in hypervisor.list_networks(details):
+        print(network)
 
 
 @networks.command("leases")
 @click.argument("network")
 @pass_hypervisor
-def networks_leases(hypervisor, network):
+def leases(hypervisor, network):
     """
     List leases for a network
     """
@@ -34,7 +36,7 @@ def networks_leases(hypervisor, network):
 @networks.command("create")
 @click.argument("network")
 @pass_hypervisor
-def networks_create(hypervisor, network):
+def create(hypervisor, network):
     """
     Start a network
 
@@ -57,7 +59,7 @@ def networks_create(hypervisor, network):
 @networks.command("start")
 @click.argument("network")
 @pass_hypervisor
-def networks_start(hypervisor, network):
+def start(hypervisor, network):
     """
     Start a network
     """

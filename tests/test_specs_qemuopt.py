@@ -74,6 +74,13 @@ def test_qemuopt_drive():
     assert opt.to_args() == ("--drive", "file=test.raw,if=virtio,format=raw")
 
 
+def test_qemuopt_drive_only_backing_file():
+    opt = DriveOpt("backing_file=/fuu/bar/test.qcow2,chroot=/fuu")
+    assert opt.key == "drive"
+    assert opt == {"file": "/fuu/disk.qcow2", "backing_file": "/fuu/bar/test.qcow2", "chroot": "/fuu", "if": "virtio", "format": "qcow2"}
+    assert opt.to_args() == ("--drive", "if=virtio,file=/fuu/disk.qcow2,format=qcow2")
+
+
 def test_qemuopt_drive_format():
     opt = DriveOpt({"file": "test.img", "size": "20G", "format": "qcow2"})
     assert opt.key == "drive"

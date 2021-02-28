@@ -14,13 +14,14 @@ def vms():
 
 
 @vms.command("list")
+@click.option("--details", is_flag=True, help="Show more details")
 @pass_hypervisor
-def list_(hypervisor):
+def list_(hypervisor, details):
     """
     List virtual machines
     """
-    for name in hypervisor.list_vms():
-        print(name)
+    for vm in hypervisor.list_vms(details):
+        print(vm)
 
 
 @vms.command("info")
@@ -107,7 +108,8 @@ def create(hypervisor, dry_run, **spec):
         print(json.dumps(vm, indent=2))
         print(f"qemu-system-{vm['arch']} " + " ".join(vm.to_args()))
     else:
-        hypervisor.create_vm(vm)
+        vnc = hypervisor.create_vm(vm)
+        print(f"  Display: vnc://:{vm['vnc']['password']}@{vnc['host']}:{vnc['service']}")
     print(f"Vm {vm['name']} created")
 
 

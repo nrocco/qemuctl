@@ -17,29 +17,42 @@ class Hypervisor:
         return Ssh(self.host, command, **kwargs)
 
     def get_qmp(self, name):
-        return Qmp(self.host, os.path.join(self.state_directory, "vms", name, "qmp.sock"))
+        return Qmp(self.host, self.get_vms_dir(name, "qmp.sock"))
 
-    def list_vms(self):
-        result = self.run(["ls", os.path.join(self.state_directory, "vms")])
-        return result.stdout.splitlines()
+    def get_vms_dir(self, *name):
+        return os.path.join(self.state_directory, "vms", *name)
+
+    def get_images_dir(self, *name):
+        return os.path.join(self.state_directory, "images", *name)
+
+    def get_networks_dir(self, *name):
+        return os.path.join(self.state_directory, "networks", *name)
+
+    def list_vms(self, details=False):
+        return self.run(["ls", "-lh1" if details else "-h1", self.get_vms_dir()]).stdout.splitlines()
+
+    def list_images(self, details=False):
+        return self.run(["ls", "-lh1" if details else "-h1", self.get_images_dir()]).stdout.splitlines()
+
+    def list_networks(self, details=False):
+        return self.run(["ls", "-lh1" if details else "-h1", self.get_networks_dir()]).stdout.splitlines()
 
     def default_opts_for_vm(self, name):
-        chroot = os.path.join(self.state_directory, "vms", name)
         return {
-            "chroot": chroot,
-            "pidfile": os.path.join(chroot, "pidfile"),
+            "chroot": self.get_vms_dir(name),
+            "pidfile": self.get_vms_dir(name, "pidfile"),
             "qmp": f"unix:{chroot}/qmp.sock,server=yes,wait=no",
             "vnc": {
                 "vnc": self.vnc_address,
                 "password": self.vnc_password,
             },
-            "writeconfig": os.path.join(chroot, "config.cfg"),
+            "writeconfig": self.get_vms_dir(name, "config.cfg"),
         }
 
     def create_vm(self, spec):
         # TODO check if vm is not already created,
         self.run(["mkdir", "-p", spec["chroot"]])
-        self.run(["tee", os.path.join(spec["chroot"], "spec.json")], input=json.dumps(spec, indent=2))
+        self.run(["tee", self.get_vms_dir(spec["name"], "spec.json")], input=json.dumps(spec, indent=2))
         for drive in spec["drives"]:
             try:
                 self.run(["test", "-f", drive["file"]])
@@ -64,31 +77,29 @@ class Hypervisor:
             if spec["vnc"]["password"]:
                 qmp.execute("change-vnc-password", password=spec["vnc"]["password"])
             qmp.execute("cont")
+            vnc = qmp.execute("query-vnc")
+        return vnc
 
     def get_vm(self, name):
-        spec = self.run(["cat", os.path.join(self.state_directory, "vms", name, "spec.json")]).stdout
+        spec = self.run(["cat", self.get_vms_dir(name, "spec.json")]).stdout
         return Vm(json.loads(spec))
 
-    def remove_vm(self, vm):
-        # TODO check if vm is running
-        with self.get_qmp(vm) as qmp:
+    def remove_vm(self, name):
+        # TODO check if name is running
+        with self.get_qmp(name) as qmp:
             qmp.execute("quit")
-        self.run(["rm", "-rf", os.path.join(self.state_directory, "vms", vm)])
-
-    def list_images(self):
-        result = self.run(["ls", "-lh", os.path.join(self.state_directory, "images")])
-        return result.stdout.splitlines()
+        self.run(["rm", "-rf", self.get_vms_dir(name)])
 
     def get_image(self, image):
-        result = self.run(["qemu-img", "info", "--backing-chain", "--output=json", os.path.join(self.state_directory, "images", image)])
+        result = self.run(["qemu-img", "info", "--backing-chain", "--output=json", self.get_images_dir(image)])
         return json.loads(result.stdout)
 
     def remove_image(self, image):
-        self.run(["rm", os.path.join(self.state_directory, "images", image)])
+        self.run(["rm", self.get_images_dir(image)])
 
     def get_leases(self, network):
         leases = []
-        result = self.run(["cat", os.path.join(self.state_directory, "networks", network, f"{network}.leases")])
+        result = self.run(["cat", self.get_networks_dir(network, f"{network}.leases")])
         for line in result.stdout.splitlines():
             data = line.split(" ")
             leases.append({
@@ -101,5 +112,5 @@ class Hypervisor:
         return leases
 
     def start_network(self, network):
-        conf_file = os.path.join(self.state_directory, "networks", network, f"{network}.conf")
+        conf_file = self.get_networks_dir(network, f"{network}.conf")
         self.run(["dnsmasq", f"--conf-file={conf_file}"])

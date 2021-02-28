@@ -13,18 +13,20 @@ def images():
 
 
 @images.command("list")
+@click.option("--details", is_flag=True, help="Show more details")
 @pass_hypervisor
-def images_list(hypervisor):
+def list_(hypervisor, details):
     """
     List all available images
     """
-    print("\n".join(hypervisor.list_images()))
+    for image in hypervisor.list_images(details):
+        print(image)
 
 
 @images.command("info")
-@click.argument("image", nargs=1)
+@click.argument("image")
 @pass_hypervisor
-def images_info(hypervisor, image):
+def info(hypervisor, image):
     """
     Get information about an image
     """
@@ -32,9 +34,9 @@ def images_info(hypervisor, image):
 
 
 @images.command("delete")
-@click.argument("image", nargs=1)
+@click.argument("image")
 @pass_hypervisor
-def images_delete(hypervisor, image):
+def delete(hypervisor, image):
     """
     Remove an image
     """

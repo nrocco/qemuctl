@@ -31,6 +31,7 @@ def test_vm_from_dict():
         "--cpu", "host",
         "--vga", "std",
         "--device", "driver=virtio-tablet-pci",
+        '--device', 'driver=virtio-balloon-pci',
         "--drive", "id=hd0,file=/fuu/disk01.qcow2,if=virtio,format=qcow2",
         "--name", "test-vm",
         "--boot", "order=nd",

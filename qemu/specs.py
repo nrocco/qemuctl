@@ -92,6 +92,8 @@ class Vm(dict):
                 spec[key] += [QemuOpt(key.rstrip("s"), opt) for opt in value]
         if not [device for device in spec["devices"] if device["driver"] == "virtio-tablet-pci"]:
             spec["devices"] += [QemuOpt("device", driver="virtio-tablet-pci")]
+        if not [device for device in spec["devices"] if device["driver"] == "virtio-balloon-pci"]:
+            spec["devices"] += [QemuOpt("device", driver="virtio-balloon-pci")]
         super().__init__(spec)
 
     def to_args(self):
@@ -190,6 +192,9 @@ class DriveOpt(QemuOpt):
         super().__init__("drive", *args, **kwargs)
         if "if" not in self:
             self["if"] = "virtio"
+        if "file" not in self and "backing_file" in self:
+            _, ext = os.path.splitext(self["backing_file"])
+            self["file"] = f"{self['id'] if 'id' in self else 'disk'}{ext}"
         if "file" in self and "chroot" in self and self['chroot'] and not self["file"].startswith("/"):
             self["file"] = os.path.join(self["chroot"], self["file"])
         if "format" not in self:
