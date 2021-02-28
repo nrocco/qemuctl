@@ -1,5 +1,6 @@
 import click
 import json
+import ipaddress
 
 from .utils import pass_hypervisor
 
@@ -19,51 +20,41 @@ def ls(hypervisor, details):
     """
     List all available networks.
     """
-    for network in hypervisor.list_networks(details):
-        print(network)
+    for name in hypervisor.list_networks(details):
+        print(name)
 
 
 @networks.command()
-@click.option("--dhcp", is_flag=True, help="Enable dhcp server on this network")
-@click.option("--address", help="Assign an ip address to this network")
-@click.argument("network")
+@click.option("--ip-range", help="Assign an ip address to this network")
+@click.option("--dhcp/--no-dhcp", default=True, help="Enable dhcp server on this network")
+@click.argument("name")
 @pass_hypervisor
-def create(hypervisor, network, dhcp, address):
+def create(hypervisor, name, dhcp, ip_range):
     """
     Create a network.
     """
-    # strict-order
-    # pid-file=/var/lib/qemu/networks/br0/br0.pid
-    # except-interface=lo
-    # bind-dynamic
-    # interface=br0
-    # dhcp-range=192.168.122.2,192.168.122.254,255.255.255.0
-    # dhcp-no-override
-    # dhcp-authoritative
-    # dhcp-lease-max=253
-    # dhcp-hostsfile=/var/lib/qemu/networks/br0/br0.hostsfile
-    # addn-hosts=/var/lib/qemu/networks/br0/br0.addnhosts
-    # dhcp-leasefile=/var/lib/qemu/networks/br0/br0.leases
-    hypervisor.create_network(network, dhcp, address)
-    print(f"Network {network} created")
+    if ip_range:
+        ip_range = ipaddress.ip_network(ip_range)
+    hypervisor.create_network(name, dhcp, ip_range)
+    print(f"Network {name} created")
 
 
 @networks.command()
-@click.argument("network")
+@click.argument("name")
 @pass_hypervisor
-def destroy(hypervisor, network):
+def destroy(hypervisor, name):
     """
     Destroy a network.
     """
-    hypervisor.destroy_network(network)
-    print(f"Network {network} destroy")
+    hypervisor.destroy_network(name)
+    print(f"Network {name} destroy")
 
 
 @networks.command()
-@click.argument("network")
+@click.argument("name")
 @pass_hypervisor
-def leases(hypervisor, network):
+def leases(hypervisor, name):
     """
     List leases for a network.
     """
-    print(json.dumps(hypervisor.get_leases(network), indent=2))
+    print(json.dumps(hypervisor.get_leases(name), indent=2))

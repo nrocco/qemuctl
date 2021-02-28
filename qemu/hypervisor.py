@@ -1,13 +1,15 @@
 import json
 import os
+import subprocess
 
-from .specs import Vm
+from .dnsmasq import get_dnsmasq_config
 from .qmp import Qmp
+from .specs import Vm
 from .ssh import Ssh
 
 
 class Hypervisor:
-    def __init__(self, host, state_directory, vnc_address, vnc_password):
+    def __init__(self, host, state_directory, vnc_address=None, vnc_password=None):
         self.host = host
         self.state_directory = state_directory
         self.vnc_address = vnc_address
@@ -41,7 +43,7 @@ class Hypervisor:
         return {
             "chroot": self.get_vms_dir(name),
             "pidfile": self.get_vms_dir(name, "pidfile"),
-            "qmp": f"unix:{chroot}/qmp.sock,server=yes,wait=no",
+            "qmp": f"unix:{self.get_vms_dir(name, 'qmp.sock')},server=yes,wait=no",
             "vnc": {
                 "vnc": self.vnc_address,
                 "password": self.vnc_password,
@@ -99,7 +101,7 @@ class Hypervisor:
 
     def get_leases(self, network):
         leases = []
-        result = self.run(["cat", self.get_networks_dir(network, f"{network}.leases")])
+        result = self.run(["cat", self.get_networks_dir(network, "leases")])
         for line in result.stdout.splitlines():
             data = line.split(" ")
             leases.append({
@@ -111,17 +113,24 @@ class Hypervisor:
             })
         return leases
 
-    def create_network(self, name, dhcp=False, address=None):
+    def create_network(self, name, dhcp=False, ip_range=None):
         self.run(["mkdir", self.get_networks_dir(name)])
         self.run(["ip", "link", "add", "dev", name, "type", "bridge", "stp_state", "1"])
-        if address:
-            self.run(["ip", "addr", "add", address, "dev", name])
+        if ip_range:
+            self.run(["ip", "addr", "add", str(ip_range[1]), "dev", name])
         if dhcp:
-            # TODO: create a dnsmasq config file
-            conf_file = self.get_networks_dir(network, f"{network}.conf")
-            self.run(["echo", "dnsmasq", f"--conf-file={conf_file}"])  # TODO implement this
+            dnsmasq_conf = get_dnsmasq_config(name, self.get_networks_dir(name), ip_range)
+            self.run(["tee", self.get_networks_dir(name, "dnsmasq.conf")], input=dnsmasq_conf)
+            conf_file = self.get_networks_dir(name, "dnsmasq.conf")
+            self.run(["dnsmasq", f"--conf-file={conf_file}"])
 
     def destroy_network(self, name):
-        # TODO kill dnsmasq if running
-        self.run(["ip", "link", "delete", name])
+        try:
+            self.run(["pkill", "--pidfile", self.get_networks_dir(name, 'pidfile')])
+        except subprocess.CalledProcessError:
+            pass
+        try:
+            self.run(["ip", "link", "delete", name])
+        except subprocess.CalledProcessError:
+            pass
         self.run(["rm", "-rf", self.get_networks_dir(name)])
