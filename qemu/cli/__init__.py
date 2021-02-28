@@ -6,8 +6,9 @@ from qemu.hypervisor import Hypervisor
 
 from .images import images
 from .networks import networks
-from .vms import vms
+from .system import system
 from .utils import read_config
+from .vms import vms
 
 
 @click.group(context_settings=dict(auto_envvar_prefix="QEMU", show_default=True))
@@ -29,4 +30,5 @@ def cli(ctx, verbose, config, hypervisor, state_directory, vnc_address, vnc_pass
 
 cli.add_command(images)
 cli.add_command(networks)
+cli.add_command(system)
 cli.add_command(vms)
