@@ -48,7 +48,7 @@ QEMU_LIST_OPTS = [
 ]
 
 
-class Vm(dict):
+class VmSpec(dict):
     def __init__(self, *args, **kwargs):
         defaults = {
             "arch": "x86_64",
@@ -96,13 +96,13 @@ class Vm(dict):
             spec["devices"] += [QemuOpt("device", driver="virtio-balloon-pci")]
         super().__init__(spec)
 
-    def to_args(self):
-        args = []
+    def to_qemu_args(self):
+        args = [f"qemu-system-{self['arch']}"]
         for key, value in self.items():
             if key == "arch":
                 continue
             elif isinstance(value, QemuOpt):
-                args += value.to_args()
+                args += value.to_qemu_args()
             elif key == "startup" and value is False:
                 args += ["--S"]
             elif key == "kvm" and value is True:
@@ -117,7 +117,7 @@ class Vm(dict):
                 args += f"--{key}", value
             elif key in QEMU_LIST_OPTS:
                 for opt in value:
-                    args += opt.to_args()
+                    args += opt.to_qemu_args()
         return args
 
 
@@ -152,7 +152,7 @@ class QemuOpt(dict):
         spec.update(kwargs)
         super().__init__(spec)
 
-    def to_args(self):
+    def to_qemu_args(self):
         return (f"--{'m' if 'memory' == self.key else self.key}", ",".join([f"{key}={value}" for key, value in self.items() if key not in self.non_qemu_opts]))
 
 
@@ -164,8 +164,8 @@ class VncOpt(QemuOpt):
         if ":" not in self["vnc"]:
             self["vnc"] += ":0"
 
-    def to_args(self):
-        key, value = super().to_args()
+    def to_qemu_args(self):
+        key, value = super().to_qemu_args()
         if "password" in self:
             value += ",password=yes"
         return (key, value)
@@ -203,3 +203,16 @@ class DriveOpt(QemuOpt):
                 self["format"] = "qcow2"
             elif ext in ['.raw', '.img']:
                 self["format"] = "raw"
+
+    def to_qemu_img_args(self):
+        args = ["qemu-img", "create"]
+        if "backing_file" in self and "format" in self:
+            args += "-F", self["format"]
+        if "backing_file" in self:
+            args += "-b", self["backing_file"]
+        if "format" in self:
+            args += "-f", self["format"]
+        args += [self["file"]]
+        if "size" in self:
+            args += [self["size"]]
+        return args

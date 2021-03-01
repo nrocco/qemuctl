@@ -1,10 +1,10 @@
 import json
 
-from qemu.specs import Vm
+from qemu.specs import VmSpec
 
 
 def test_vm_from_dict():
-    vm = Vm({
+    vm = VmSpec({
         "name": "test-vm",
         "chroot": "/fuu",
         "boot": {
@@ -19,7 +19,8 @@ def test_vm_from_dict():
     assert vm["arch"] == "x86_64"
     assert "fuu" not in vm
     assert "50G" == vm["drives"][0]["size"]
-    assert vm.to_args() == [
+    assert vm.to_qemu_args() == [
+        "qemu-system-x86_64",
         "--enable-kvm",
         "--daemonize",
         "--nodefaults",
@@ -40,31 +41,31 @@ def test_vm_from_dict():
 
 
 def test_vm_with_kvm_disabled():
-    vm = Vm(kvm=False)
+    vm = VmSpec(kvm=False)
     assert False is vm["kvm"]
-    assert "--enable-kvm" not in vm.to_args()
+    assert "--enable-kvm" not in vm.to_qemu_args()
 
 
 def test_vm_with_shutdown_enabled():
-    vm = Vm(shutdown=True)
+    vm = VmSpec(shutdown=True)
     assert True is vm["shutdown"]
-    assert "--no-shutdown" not in vm.to_args()
+    assert "--no-shutdown" not in vm.to_qemu_args()
 
 
 def test_vm_with_uuid_from_input():
-    vm = Vm(uuid="252f489b-d5e3-45e0-ab3e-3745b569fc53")
+    vm = VmSpec(uuid="252f489b-d5e3-45e0-ab3e-3745b569fc53")
     assert "252f489b-d5e3-45e0-ab3e-3745b569fc53" == vm["uuid"]
-    assert "252f489b-d5e3-45e0-ab3e-3745b569fc53" in vm.to_args()
+    assert "252f489b-d5e3-45e0-ab3e-3745b569fc53" in vm.to_qemu_args()
 
 
 def test_vm_from_string():
-    vm = Vm({"boot": "order=n"})
+    vm = VmSpec({"boot": "order=n"})
     assert vm["boot"] == {"order": "n"}
-    assert "order=n" in vm.to_args()
+    assert "order=n" in vm.to_qemu_args()
 
 
 def test_vm_serialize_and_restore():
-    vm1 = Vm({
+    vm1 = VmSpec({
         "name": "test-vm",
         "chroot": "/fuu",
         "boot": "order=nd",
@@ -72,7 +73,7 @@ def test_vm_serialize_and_restore():
         "nics": ["br0,mac=aa:bb:cc:dd:ee:ff,model=virtio-net-pci"],
         "vnc": "127.0.0.1,password=fuubar",
     })
-    vm2 = Vm(json.loads(json.dumps(vm1)))
+    vm2 = VmSpec(json.loads(json.dumps(vm1)))
     assert vm1["name"] == vm2["name"] == "test-vm"
     assert vm1["uuid"] == vm2["uuid"]
     assert vm1["chroot"] == vm2["chroot"] == "/fuu"

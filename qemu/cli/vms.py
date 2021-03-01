@@ -1,8 +1,9 @@
 import click
 import json
+import subprocess
 
 from .utils import pass_hypervisor
-from qemu.specs import Vm
+from qemu.specs import VmSpec
 
 
 @click.group()
@@ -31,11 +32,15 @@ def show(hypervisor, name):
     """
     Show information about a virtual machine.
     """
-    vm = hypervisor.get_vm(name)
-    with hypervisor.get_qmp(name) as qmp:
-        status = qmp.execute("query-status")
-        vnc = qmp.execute("query-vnc")
     print(f"{name}:")
+    vm = hypervisor.get_vm(name)
+    try:
+        with hypervisor.get_qmp(name) as qmp:
+            status = qmp.execute("query-status")
+            vnc = qmp.execute("query-vnc")
+    except:
+        print(f"  Status: not-started")
+        return
     print(f"  Status: {status['status']}")
     print(f"  Display: vnc://:{vm['vnc']['password']}@{vnc['host']}:{vnc['service']}")
     if vm['nics']:
@@ -44,6 +49,23 @@ def show(hypervisor, name):
         if lease:
             print(f"  Ip: {lease[0]['ip']}")
             print(f"  Hostname: {lease[0]['host']}")
+
+
+@vms.command()
+@click.argument("name")
+@pass_hypervisor
+def display(hypervisor, name):
+    """
+    Open the console with vnc
+    """
+    vm = hypervisor.get_vm(name)
+    try:
+        with hypervisor.get_qmp(name) as qmp:
+            vnc = qmp.execute("query-vnc")
+    except:
+        print(f"  Status: not-started")
+        return
+    subprocess.run(["open", f"vnc://:{vm['vnc']['password']}@{vnc['host']}:{vnc['service']}"])
 
 
 @vms.command()
@@ -103,10 +125,10 @@ def create(hypervisor, dry_run, **spec):
     \b
         --cdrom /var/lib/qemu/images/Fedora-Server-netinst-x86_64-33-1.2.iso
     """
-    vm = Vm(spec, hypervisor.default_opts_for_vm(spec["name"]))
+    vm = VmSpec(spec, hypervisor.default_opts_for_vm(spec["name"]))
     if dry_run:
         print(json.dumps(vm, indent=2))
-        print(f"qemu-system-{vm['arch']} " + " ".join(vm.to_args()))
+        print(" ".join(vm.to_qemu_args()))
     else:
         vnc = hypervisor.create_vm(vm)
         print(f"  Display: vnc://:{vm['vnc']['password']}@{vnc['host']}:{vnc['service']}")
@@ -120,8 +142,7 @@ def start(hypervisor, name):
     """
     Start a virtual machine.
     """
-    with hypervisor.get_qmp(name) as qmp:
-        qmp.execute("cont")
+    hypervisor.start_vm(name)
     print(f"Vm {name} started")
 
 
@@ -138,14 +159,15 @@ def restart(hypervisor, name):
 
 
 @vms.command()
+@click.option("--force", is_flag=True, help="Stop the vm using force.")
 @click.argument("name")
 @pass_hypervisor
-def stop(hypervisor, name):
+def stop(hypervisor, name, force):
     """
     Stop a virtual machine.
     """
     with hypervisor.get_qmp(name) as qmp:
-        qmp.execute("quit")
+        qmp.execute("quit" if force else 'system_powerdown')
     print(f"Vm {name} stopped")
 
 

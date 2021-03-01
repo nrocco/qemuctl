@@ -4,7 +4,7 @@ import subprocess
 
 from .dnsmasq import get_dnsmasq_config
 from .qmp import Qmp
-from .specs import Vm
+from .specs import VmSpec
 from .ssh import Ssh
 
 
@@ -52,13 +52,23 @@ class Hypervisor:
             "writeconfig": self.get_vms_dir(name, "config.cfg"),
         }
 
-    def create_vm(self, spec):
-        # TODO check if vm is not already created,
-        self.run(["mkdir", "-p", spec["chroot"]])
+    def create_vm(self, name, spec):
+        self.run(["mkdir", spec["chroot"]])
         self.run(["tee", self.get_vms_dir(spec["name"], "spec.json")], input=json.dumps(spec, indent=2))
         for drive in spec["drives"]:
-            self.create_vm_drive(drive)
-        self.run([f"qemu-system-{spec['arch']}"] + spec.to_args())
+            try:
+                self.run(["test", "-f", drive["file"]])
+                continue
+            except subprocess.CalledProcessError:
+                pass
+            if "size" not in drive and "backing_file" not in drive:
+                continue
+            self.run(drive.to_qemu_img_args())
+
+    def start_vm(self, name, spec=None):
+        if not spec:
+            spec = self.get_vm(name)
+        self.run(spec.to_qemu_args())
         with self.get_qmp(spec["name"]) as qmp:
             if spec["vnc"]["password"]:
                 qmp.execute("change-vnc-password", password=spec["vnc"]["password"])
@@ -66,34 +76,17 @@ class Hypervisor:
             vnc = qmp.execute("query-vnc")
         return vnc
 
-    def create_vm_drive(self, drive):
-        try:
-            self.run(["test", "-f", drive["file"]])
-            return
-        except subprocess.CalledProcessError:
-            pass
-        if "size" not in drive and "backing_file" not in drive:
-            return
-        args = ["qemu-img", "create"]
-        if "backing_file" in drive and "format" in drive:
-            args += "-F", drive["format"]
-        if "backing_file" in drive:
-            args += "-b", drive["backing_file"]
-        if "format" in drive:
-            args += "-f", drive["format"]
-        args += [drive["file"]]
-        if "size" in drive:
-            args += [drive["size"]]
-        self.run(args)
-
     def get_vm(self, name):
         spec = self.run(["cat", self.get_vms_dir(name, "spec.json")]).stdout
-        return Vm(json.loads(spec))
+        return VmSpec(json.loads(spec))
 
     def destroy_vm(self, name):
-        # TODO check if name is running
-        with self.get_qmp(name) as qmp:
-            qmp.execute("quit")
+        try:
+            with self.get_qmp(name) as qmp:
+                qmp.execute("quit")
+            self.run(["pkill", "--echo", "--pidfile", self.get_networks_dir(name, 'pidfile'), "qemu"])
+        except:
+            pass
         self.run(["rm", "-rf", self.get_vms_dir(name)])
 
     def get_image(self, image):
@@ -119,7 +112,8 @@ class Hypervisor:
 
     def create_network(self, name, dhcp=False, ip_range=None):
         self.run(["mkdir", self.get_networks_dir(name)])
-        self.run(["ip", "link", "add", "dev", name, "type", "bridge", "stp_state", "1"])
+        self.run(["ip", "link", "add", name, "type", "bridge", "stp_state", "1"])
+        self.run(["ip", "link", "set", name, "up"])
         if ip_range:
             self.run(["ip", "addr", "add", str(ip_range[1]), "dev", name])
         if dhcp:
@@ -130,7 +124,7 @@ class Hypervisor:
 
     def destroy_network(self, name):
         try:
-            self.run(["pkill", "--pidfile", self.get_networks_dir(name, 'pidfile')])
+            self.run(["pkill", "--pidfile", self.get_networks_dir(name, 'pidfile'), "dnsmasq"])
         except subprocess.CalledProcessError:
             pass
         try:

@@ -25,6 +25,17 @@ def ls(hypervisor, details):
 
 
 @networks.command()
+@click.argument("name")
+@pass_hypervisor
+def show(hypervisor, name):
+    print(json.dumps(json.loads(hypervisor.run(["ip", "-j", "route", "show", "dev", name]).stdout), indent=2))
+    print(json.dumps(json.loads(hypervisor.run(["ip", "-j", "neigh", "show", "dev", name]).stdout), indent=2))
+    print(json.dumps(json.loads(hypervisor.run(["ip", "-j", "addr", "show", "dev", name]).stdout), indent=2))
+    print(json.dumps(json.loads(hypervisor.run(["ip", "-j", "link", "show", "master", name, "type", "bridge_slave"]).stdout), indent=2))
+    print(json.dumps(json.loads(hypervisor.run(["ifstat", "-j", name]).stdout), indent=2))
+
+
+@networks.command()
 @click.option("--ip-range", help="Assign an ip address to this network")
 @click.option("--dhcp/--no-dhcp", default=True, help="Enable dhcp server on this network")
 @click.argument("name")

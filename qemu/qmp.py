@@ -14,23 +14,33 @@ class Qmp:
     """
     def __init__(self, host, socket):
         self.command = ["ssh", host, "--", "socat", "-", f"UNIX-CONNECT:{socket}"]
+        self.proc = None
 
     def __enter__(self):
+        self.open()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()
+
+    def open(self):
         self.events = []
         self.proc = subprocess.Popen(self.command, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         if len(list(self._read())) == 0:
             raise RuntimeError("Qmp monitor not available")
         self.execute("qmp_capabilities", enable=["oob"])
-        return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def close(self):
         if not self.proc:
             return
         self.proc.terminate()
+        logging.debug(f">>> EOF")
         self.proc = None
         self.events = None
 
     def execute(self, command, **kwargs):
+        if not self.proc:
+            self.open()
         id = binascii.b2a_hex(os.urandom(4)).decode()
         cmd = {"execute": command, "id": id}
         if kwargs:
