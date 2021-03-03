@@ -1,5 +1,4 @@
 import click
-import ipaddress
 import json
 import logging
 import os
@@ -242,8 +241,8 @@ def images_list(hypervisor, details):
     """
     List all available images.
     """
-    for name in hypervisor.list_images(details):
-        print(name)
+    for image in hypervisor.get("/images").json():
+        print(image['name'])
 
 
 @images.command("show")
@@ -253,7 +252,8 @@ def images_show(hypervisor, name):
     """
     Show information about an image.
     """
-    print(json.dumps(hypervisor.get_image(name), indent=2))
+    image = hypervisor.get(f"/images/{name}").json()
+    print(json.dumps(image, indent=2))
 
 
 @images.command("delete")
@@ -263,7 +263,7 @@ def images_delete(hypervisor, name):
     """
     Delete an image.
     """
-    hypervisor.delete_image(name)
+    hypervisor.delete(f"/images/{name}")
     print(f"Image {name} deleted")
 
 
@@ -282,19 +282,16 @@ def networks_list(hypervisor, details):
     """
     List all available networks.
     """
-    for name in hypervisor.list_networks(details):
-        print(name)
+    for network in hypervisor.get("/networks").json():
+        print(network['name'])
 
 
 @networks.command("show")
 @click.argument("name")
 @pass_hypervisor
 def networks_show(hypervisor, name):
-    print(json.dumps(json.loads(hypervisor.run(["ip", "-j", "route", "show", "dev", name]).stdout), indent=2))
-    print(json.dumps(json.loads(hypervisor.run(["ip", "-j", "neigh", "show", "dev", name]).stdout), indent=2))
-    print(json.dumps(json.loads(hypervisor.run(["ip", "-j", "addr", "show", "dev", name]).stdout), indent=2))
-    print(json.dumps(json.loads(hypervisor.run(["ip", "-j", "link", "show", "master", name, "type", "bridge_slave"]).stdout), indent=2))
-    print(json.dumps(json.loads(hypervisor.run(["ifstat", "-j", name]).stdout), indent=2))
+    network = hypervisor.get(f"/networks/{name}").json()
+    print(json.dumps(network, indent=2))
 
 
 @networks.command("create")
@@ -302,14 +299,12 @@ def networks_show(hypervisor, name):
 @click.option("--dhcp/--no-dhcp", default=True, help="Enable dhcp server on this network")
 @click.argument("name")
 @pass_hypervisor
-def networks_create(hypervisor, name, dhcp, ip_range):
+def networks_create(hypervisor, **spec):
     """
     Create a network.
     """
-    if ip_range:
-        ip_range = ipaddress.ip_network(ip_range)
-    hypervisor.create_network(name, dhcp, ip_range)
-    print(f"Network {name} created")
+    hypervisor.post("/networks", json=spec)
+    print(f"Network {spec['name']} created")
 
 
 @networks.command("destroy")
@@ -319,32 +314,5 @@ def networks_destroy(hypervisor, name):
     """
     Destroy a network.
     """
-    hypervisor.destroy_network(name)
-    print(f"Network {name} destroy")
-
-
-@networks.command("leases")
-@click.argument("name")
-@pass_hypervisor
-def networks_leases(hypervisor, name):
-    """
-    List leases for a network.
-    """
-    print(json.dumps(hypervisor.get_leases(name), indent=2))
-
-
-@cli.group()
-def system():
-    """
-    Manage the hypervisor itself.
-    """
-    pass
-
-
-@system.command("show")
-@pass_hypervisor
-def system_show(hypervisor):
-    """
-    View all objects on this hypervisor.
-    """
-    print(hypervisor.run(["tree", hypervisor.state_directory]).stdout)
+    hypervisor.delete(f"/networks/{name}")
+    print(f"Network {name} destroyed")

@@ -1,12 +1,14 @@
+import ipaddress
 import json
 import os
 import shutil
 import signal
 import subprocess
 
-from functools import wraps
 from flask import Flask, request, jsonify
+from functools import wraps
 
+from .dnsmasq import get_dnsmasq_config
 from .qmp import Qmp
 from .specs import VmSpec
 
@@ -16,6 +18,10 @@ VNC_PASSWORD = "xyfOhwJY"
 
 
 app = Flask(__name__)
+
+
+def run(command):
+    return subprocess.run(command, text=True, capture_output=True, check=True)
 
 
 def get_dir(*parts):
@@ -71,7 +77,7 @@ def vms_post():
             continue
         if "size" not in drive and "backing_file" not in drive:
             continue
-        subprocess.run(drive.to_qemu_img_args(), text=True, capture_output=True, check=True)
+        run(drive.to_qemu_img_args())
     return vms_post_start(spec["name"])
 
 
@@ -92,7 +98,7 @@ def vms_get(name, spec):
 @app.route('/vms/<name>/start', methods=['POST'])
 @pass_vm
 def vms_post_start(name, spec):
-    subprocess.run(spec.to_qemu_args(), text=True, capture_output=True, check=True)
+    run(spec.to_qemu_args())
     with Qmp(get_dir(spec['chroot'], 'qmp.sock')) as qmp:
         if spec["vnc"]["password"]:
             qmp.execute("change-vnc-password", password=spec["vnc"]["password"])
@@ -136,6 +142,114 @@ def vms_delete(name, spec):
 def vms_get_drives(name, spec):
     drives = []
     for drive in spec['drives']:
-        output = subprocess.run(["qemu-img", "info", "--backing-chain", "--output=json", drive['file']], text=True, capture_output=True, check=True)
+        output = run(["qemu-img", "info", "--output=json", drive['file']])
         drives.append(json.loads(output.stdout))
     return jsonify(drives)
+
+
+@app.route('/images', methods=['GET'])
+def images_list():
+    images = []
+    for name in os.listdir('images'):
+        output = run(["qemu-img", "info", "--output=json", get_dir('images', name)])
+        images.append({
+            'name': name,
+            'spec': json.loads(output.stdout),
+        })
+    return jsonify(images)
+
+
+@app.route('/images/<name>', methods=['GET'])
+def images_get(name):
+    file = get_dir('images', name)
+    if not os.path.isfile(file):
+        return jsonify(message=f"Image {name} does not exist"), 404
+    output = run(["qemu-img", "info", "--output=json", file])
+    return jsonify(json.loads(output.stdout))
+
+
+@app.route('/images/<name>', methods=['DELETE'])
+def images_delete(name):
+    file = get_dir('images', name)
+    if not os.path.isfile(file):
+        return jsonify(message=f"Image {name} does not exist"), 404
+    os.path.remove(file)
+    return jsonify(None), 204
+
+    def list_networks(self, details=False):
+        return self.run(["ls", "-lh1" if details else "-h1", self.get_networks_dir()]).stdout.splitlines()
+
+
+@app.route('/networks', methods=['GET'])
+def networks_list():
+    networks = []
+    for name in os.listdir('networks'):
+        networks.append({
+            'name': name,
+            'spec': None  # TODO introduce spec files for networks
+        })
+    return jsonify(networks)
+
+
+@app.route('/networks', methods=['POST'])
+def networks_post():
+    data = request.get_json()
+    chroot = get_dir("networks", data['name'])
+    os.makedirs(chroot)
+    run(["ip", "link", "add", data['name'], "type", "bridge", "stp_state", "1"])
+    run(["ip", "link", "set", data['name'], "up"])
+    if data['ip_range']:
+        ip_range = ipaddress.ip_network(data['ip_range'])
+        run(["ip", "addr", "add", str(ip_range[1]), "dev", data['name']])
+        if data['dhcp']:
+            dnsmasq_conf = get_dnsmasq_config(data['name'], chroot, ip_range)
+            dnsmasq_conf_file = get_dir(chroot, "dnsmasq.conf")
+            with open(dnsmasq_conf_file, "w") as file:
+                json.dump(dnsmasq_conf, file)
+            run(["dnsmasq", f"--conf-file={dnsmasq_conf_file}"])
+
+
+@app.route('/networks/<name>', methods=['GET'])
+def networks_get(name):
+    chroot = get_dir("networks", name)
+    if not os.path.isdir(chroot):
+        jsonify(f"Network {name} does not exist"), 404
+    data = {}
+    leases_file = get_dir(chroot, "leases")
+    if os.path.isfile(leases_file):
+        data['leases'] = {}
+        with open(leases_file, "r") as file:
+            leases = file.readlines()
+        for lease in leases:
+            data = leases.split(" ")
+            leases.append({
+                "timestamp": data[0],
+                "mac": data[1],
+                "ip": data[2],
+                "host": data[3],
+                "id": data[4],
+            })
+    data['routes'] = json.loads(run(["ip", "-j", "route", "show", "dev", name]).stdout)
+    data['arp'] = json.loads(run(["ip", "-j", "neigh", "show", "dev", name]).stdout)
+    data['address'] = json.loads(run(["ip", "-j", "addr", "show", "dev", name]).stdout)
+    data['link'] = json.loads(run(["ip", "-j", "link", "show", "master", name, "type", "bridge_slave"]).stdout)
+    data['stats'] = json.loads(run(["ifstat", "-j", name]).stdout)
+    return jsonify(data)
+
+
+@app.route('/networks/<name>', methods=['DELETE'])
+def networks_delete(name):
+    pidfile = get_dir('networks', name, 'pidfile')
+    if os.path.isfile(pidfile):
+        with open(pidfile, 'r') as file:
+            pid = int(file.read().strip())
+        try:
+            os.kill(pid, signal.SIGTERM)
+        except ProcessLookupError:
+            pass
+    try:
+        run(["ip", "link", "delete", name])
+    except subprocess.CalledProcessError:
+        pass
+    shutil.rmtree(get_dir('networks', name))
+    return jsonify(None), 204
