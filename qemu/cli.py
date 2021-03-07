@@ -1,6 +1,7 @@
 import click
 import json
 import logging
+import math
 import os
 import subprocess
 
@@ -33,6 +34,14 @@ def read_config(ctx, param, value):
         with open(file) as config_file:
             ctx.default_map = json.load(config_file)
             return
+
+
+def sizeof_fmt(num, suffix='B'):
+    magnitude = int(math.floor(math.log(num, 1024)))
+    val = num / math.pow(1024, magnitude)
+    if magnitude > 7:
+        return '{:.1f}{}{}'.format(val, 'Yi', suffix)
+    return '{:3.1f}{}{}'.format(val, ['', 'Ki', 'Mi', 'Gi', 'Ti', 'Pi', 'Ei', 'Zi'][magnitude], suffix)
 
 
 pass_hypervisor = click.make_pass_decorator(Hypervisor)
@@ -69,7 +78,11 @@ def vms_list(hypervisor, details):
     List virtual machines.
     """
     for vm in hypervisor.get("/vms").json():
-        print("\t".join([vm["name"], vm["status"], vm["spec"]["memory"]["size"]]))
+        print("\t".join([
+            vm["name"].ljust(30),
+            vm["status"].rjust(8),
+            vm["spec"]["memory"]["size"].rjust(8),
+        ]))
 
 
 @vms.command("show")
@@ -262,7 +275,11 @@ def images_list(hypervisor, details):
     List all available images.
     """
     for image in hypervisor.get("/images").json():
-        print(image["name"])
+        print("\t".join([
+            image["name"].ljust(40),
+            sizeof_fmt(image["spec"]["actual-size"]).rjust(8),
+            sizeof_fmt(image["spec"]["virtual-size"]).rjust(8),
+        ]))
 
 
 @images.command("show")
