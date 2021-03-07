@@ -28,7 +28,6 @@ def test_qemuopt_from_kwargs():
 def test_qemuopt_from_string_nokey():
     data_provider = (
         ("accel", "kvm", {"accel": "kvm"}, ("--accel", "accel=kvm")),
-        ("cdrom", "fuubar.iso", {"file": "fuubar.iso"}, ("--cdrom", "file=fuubar.iso")),
         ("machine", "kvm", {"type": "kvm"}, ("--machine", "type=kvm")),
         ("memory", "2G", {"size": "2G"}, ("--m", "size=2G")),
         ("smp", "2", {"cpus": "2"}, ("--smp", "cpus=2")),
@@ -67,13 +66,13 @@ def test_qemuopt_drive():
     assert opt.key == "drive"
     assert opt == {"file": "test.qcow2", "size": "20G", "if": "virtio", "format": "qcow2"}
     assert opt.to_qemu_args() == ("--drive", "file=test.qcow2,if=virtio,format=qcow2")
-    assert opt.to_qemu_img_args() == ['qemu-img', 'create', '-f', 'qcow2', 'test.qcow2', '20G']
+    assert opt.to_qemu_img_args() == ["qemu-img", "create", "-f", "qcow2", "test.qcow2", "20G"]
 
     opt = DriveOpt({"file": "test.raw", "size": "20G"})
     assert opt.key == "drive"
     assert opt == {"file": "test.raw", "size": "20G", "if": "virtio", "format": "raw"}
     assert opt.to_qemu_args() == ("--drive", "file=test.raw,if=virtio,format=raw")
-    assert opt.to_qemu_img_args() == ['qemu-img', 'create', '-f', 'raw', 'test.raw', '20G']
+    assert opt.to_qemu_img_args() == ["qemu-img", "create", "-f", "raw", "test.raw", "20G"]
 
 
 def test_qemuopt_drive_only_backing_file():
@@ -81,7 +80,7 @@ def test_qemuopt_drive_only_backing_file():
     assert opt.key == "drive"
     assert opt == {"file": "/fuu/disk.qcow2", "backing_file": "/fuu/bar/test.qcow2", "chroot": "/fuu", "if": "virtio", "format": "qcow2"}
     assert opt.to_qemu_args() == ("--drive", "if=virtio,file=/fuu/disk.qcow2,format=qcow2")
-    assert opt.to_qemu_img_args() == ['qemu-img', 'create', '-F', 'qcow2', '-b', '/fuu/bar/test.qcow2', '-f', 'qcow2', '/fuu/disk.qcow2']
+    assert opt.to_qemu_img_args() == ["qemu-img", "create", "-F", "qcow2", "-b", "/fuu/bar/test.qcow2", "-f", "qcow2", "/fuu/disk.qcow2"]
 
 
 def test_qemuopt_drive_format():
@@ -89,4 +88,4 @@ def test_qemuopt_drive_format():
     assert opt.key == "drive"
     assert opt == {"file": "test.img", "size": "20G", "if": "virtio", "format": "qcow2"}
     assert opt.to_qemu_args() == ("--drive", "file=test.img,format=qcow2,if=virtio")
-    assert opt.to_qemu_img_args() == ['qemu-img', 'create', '-f', 'qcow2', 'test.img', '20G']
+    assert opt.to_qemu_img_args() == ["qemu-img", "create", "-f", "qcow2", "test.img", "20G"]

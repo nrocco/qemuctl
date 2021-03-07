@@ -8,6 +8,7 @@ QEMU_BOOL_OPTS = [
     "defaults",
     "hpet",
     "kvm",
+    "reboot",
     "shutdown",
     "snapshot",
     "startup",
@@ -15,11 +16,14 @@ QEMU_BOOL_OPTS = [
 
 QEMU_PLAIN_OPTS = [
     "arch",
+    "cdrom",
     "chroot",
     "cpu",
+    "monitor",
     "name",
     "pidfile",
-    "qmp",
+    "qmp",  # TODO this should be a complex opt
+    "runas",
     "uuid",
     "vga",
     "writeconfig",
@@ -28,7 +32,6 @@ QEMU_PLAIN_OPTS = [
 QEMU_COMPLEX_OPTS = [
     "accel",
     "boot",
-    "cdrom"
     "drive",
     "machine",
     "memory",
@@ -132,9 +135,7 @@ class QemuOpt(dict):
                 spec.update(arg)
             elif type(arg) == str:
                 if "=" not in arg.split(",")[0]:
-                    if key == "cdrom":
-                        arg = f"file={arg}"
-                    elif key == "smp":
+                    if key == "smp":
                         arg = f"cpus={arg}"
                     elif key == "machine":
                         arg = f"type={arg}"
@@ -174,8 +175,8 @@ class VncOpt(QemuOpt):
 class NicOpt(QemuOpt):
     def __init__(self, *args, **kwargs):
         super().__init__("nic", *args, **kwargs)
-        if 'type' in self and self['type'] == 'none':
-            del self['id']
+        if "type" in self and self["type"] == "none":
+            del self["id"]
             return
         if "br" in self and "type" not in self:
             self["type"] = "bridge"
@@ -195,13 +196,13 @@ class DriveOpt(QemuOpt):
         if "file" not in self and "backing_file" in self:
             _, ext = os.path.splitext(self["backing_file"])
             self["file"] = f"{self['id'] if 'id' in self else 'disk'}{ext}"
-        if "file" in self and "chroot" in self and self['chroot'] and not self["file"].startswith("/"):
+        if "file" in self and "chroot" in self and self["chroot"] and not self["file"].startswith("/"):
             self["file"] = os.path.join(self["chroot"], self["file"])
         if "format" not in self:
             _, ext = os.path.splitext(self["file"])
-            if ext in ['.qcow2']:
+            if ext in [".qcow2"]:
                 self["format"] = "qcow2"
-            elif ext in ['.raw', '.img']:
+            elif ext in [".raw", ".img"]:
                 self["format"] = "raw"
 
     def to_qemu_img_args(self):

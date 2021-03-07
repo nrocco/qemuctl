@@ -14,6 +14,7 @@ def test_vm_from_dict():
         "drives": [
             "disk01.qcow2,size=50G",
         ],
+        "cdrom": "/fuu/bar/cdrom.iso",
         "vnc": "127.0.0.1",
     })
     assert vm["arch"] == "x86_64"
@@ -32,10 +33,11 @@ def test_vm_from_dict():
         "--cpu", "host",
         "--vga", "std",
         "--device", "driver=virtio-tablet-pci",
-        '--device', 'driver=virtio-balloon-pci',
+        "--device", "driver=virtio-balloon-pci",
         "--drive", "id=hd0,file=/fuu/disk01.qcow2,if=virtio,format=qcow2",
         "--name", "test-vm",
         "--boot", "order=nd",
+        "--cdrom", "/fuu/bar/cdrom.iso",
         "--vnc", "vnc=127.0.0.1:0",
     ]
 

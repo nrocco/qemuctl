@@ -13,6 +13,7 @@ class Qmp:
     https://gist.github.com/rgl/dc38c6875a53469fdebb2e9c0a220c6c
     """
     def __init__(self, path):
+        self.events = []
         self.path = path
         self.socket = None
 
@@ -53,6 +54,8 @@ class Qmp:
                 response = message
             elif "event" in message:
                 self.events.append(message)
+            elif "error" in message:
+                response = message
         if not response:
             return None
         if "error" in response:

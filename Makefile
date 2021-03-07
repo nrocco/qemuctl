@@ -22,13 +22,12 @@ lint:
 
 .PHONY: test
 test:
-	pytest -vv -s
+	pytest -vv
 
 
 .PHONY: coverage
 coverage:
-	pytest --no-cov-on-fail --cov=$(MODULE) --cov-report=html --cov-report=term -vv -s tests/
+	pytest --no-cov-on-fail --cov=$(MODULE) --cov-report=html --cov-report=term -vv tests/
 
 
-# The default make target is ci
 .DEFAULT_GOAL := ci

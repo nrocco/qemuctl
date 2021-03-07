@@ -14,9 +14,11 @@ class Hypervisor(Session):
         super().__init__()
 
     def request(self, method, url, data=None, headers={}, **kwargs):
-        if not url.startswith('http'):
-            url = '{}/{}'.format(self.base_url, url.lstrip('/'))
-        return super().request(method, url, headers=headers, data=data, **kwargs)
+        if not url.startswith("http"):
+            url = f"{self.base_url}/{url.lstrip('/')}"
+        response = super().request(method, url, headers=headers, data=data, **kwargs)
+        logging.debug(response.text)
+        return response
 
 
 def read_config(ctx, param, value):
@@ -39,10 +41,11 @@ pass_hypervisor = click.make_pass_decorator(Hypervisor)
 @click.group(context_settings=dict(auto_envvar_prefix="QEMU", show_default=True))
 @click.option("--config", default=[".qemuctl.json", "~/.qemuctl.json", "/etc/qemuctl.json"], help="Location to a config file", is_eager=True, callback=read_config)
 @click.option("--hypervisor", help="Hypervisor endpoint")
+@click.option("--vnc-command", help="The vnc program to execute")
 @click.option("-v", "--verbose", count=True, help="Verbose logging, repeat to increase verbosity")
 @click.version_option(version=__version__)
 @click.pass_context
-def cli(ctx, verbose, config, hypervisor):
+def cli(ctx, verbose, config, vnc_command, hypervisor):
     """
     Manage virtual machines using qemu.
     """
@@ -66,7 +69,7 @@ def vms_list(hypervisor, details):
     List virtual machines.
     """
     for vm in hypervisor.get("/vms").json():
-        print(vm['name'])
+        print("\t".join([vm["name"], vm["status"], vm["spec"]["memory"]["size"]]))
 
 
 @vms.command("show")
@@ -77,27 +80,38 @@ def vms_show(hypervisor, name):
     Show information about a virtual machine.
     """
     vm = hypervisor.get(f"/vms/{name}").json()
-    print(f"{vm['name']}:")
-    print(f"  Status: {vm['status']['status']}")
-    if vm['vnc']:
-        print(f"  Display: {vm['vnc']['url']}")
-    # if vm['nics']:
-    #     print(f"  Mac: {vm['nics'][0]['mac']}")
-    #     lease = [lease for lease in hypervisor.get_leases(vm['nics'][0]['br']) if lease["mac"] == vm['nics'][0]['mac']]  # TODO this assumes dhcp is enabled on bridge
-    #     if lease:
-    #         print(f"  Ip: {lease[0]['ip']}")
-    #         print(f"  Hostname: {lease[0]['host']}")
+    print(f"Status: {vm['status']}")
+    if vm["vnc"]:
+        print(f"Display: {vm['vnc']}")
+    print(f"Memory: {vm['spec']['memory']}")
+    print(f"Cpu: {vm['spec']['smp']}")
+    if vm["spec"]["drives"]:
+        print("Drives:")
+        for drive in vm["spec"]["drives"]:
+            print(f"  - {drive}")
+    if vm["spec"]["nics"]:
+        print("Nics:")
+        for nic in vm["spec"]["nics"]:
+            print(f"  - {nic}")
+    print(f"State: {vm['state']}")
 
 
 @vms.command("display")
 @click.argument("name")
 @pass_hypervisor
-def vms_display(hypervisor, name):
+@click.pass_context
+def vms_display(ctx, hypervisor, name):
     """
     Open the console with vnc
     """
     vm = hypervisor.get(f"/vms/{name}").json()
-    subprocess.run(["open", vm['vnc']['url']])
+    if not vm["vnc"]:
+        print(f"Vm {name} is not running")
+        return
+    if ctx.find_root().params["vnc_command"]:
+        subprocess.run(ctx.find_root().params["vnc_command"].format(vm["vnc"]), shell=True)
+    else:
+        print(vm["vnc"])
 
 
 @vms.command("create")
@@ -114,7 +128,8 @@ def vms_display(hypervisor, name):
 @click.option("--nic", "nics", multiple=True, default=["type=none"], help="configure one or more NICs")
 @click.argument("name")
 @pass_hypervisor
-def vms_create(hypervisor, dry_run, **spec):
+@click.pass_context
+def vms_create(ctx, hypervisor, dry_run, **spec):
     """
     Create a virtual machine.
 
@@ -126,12 +141,12 @@ def vms_create(hypervisor, dry_run, **spec):
     \b
     Add drives:
     \b
-        --drive disk01.qcow2                                            # if exists ignore else create and assume size X
-        --drive file=disk01.qcow2                                       # if exists ignore else create and assume size X
-        --drive file=disk01.qcow2,size=50G                              # if exists ignore else create with size 50G
-        --drive file=/fuu/bar/test.raw                                  # fail if not exists
-        --drive file=disk01.qcow2,backing_file=/fuu/bar/test.qcow2      # if exists ignore else create file with backing file
-        --drive backing_file=/fuu/bar/test.qcow2                        # implicitly create new disk with backing file
+        --drive disk01.qcow2
+        --drive file=disk01.qcow2
+        --drive file=disk01.qcow2,size=50G
+        --drive file=/fuu/bar/test.raw
+        --drive file=disk01.qcow2,backing_file=/fuu/bar/test.qcow2
+        --drive backing_file=/fuu/bar/test.qcow2
 
     \b
     Add networks:
@@ -158,18 +173,23 @@ def vms_create(hypervisor, dry_run, **spec):
         --cdrom /var/lib/qemu/images/Fedora-Server-netinst-x86_64-33-1.2.iso
     """
     vm = hypervisor.post("/vms", json=spec).json()
-    print(f"Vm {vm['name']} created: {vm['vnc']['url']}")
+    print(f"Vm {vm['name']} created: {vm['vnc']}")
+    if ctx.find_root().params["vnc_command"]:
+        subprocess.run(ctx.find_root().params["vnc_command"].format(vm["vnc"]), shell=True)
 
 
 @vms.command("start")
 @click.argument("name")
 @pass_hypervisor
-def vms_start(hypervisor, name):
+@click.pass_context
+def vms_start(ctx, hypervisor, name):
     """
     Start a virtual machine.
     """
     vm = hypervisor.post(f"/vms/{name}/start").json()
-    print(f"Vm {name} started: {vm['vnc']['url']}")
+    print(f"Vm {name} started: {vm['vnc']}")
+    if ctx.find_root().params["vnc_command"]:
+        subprocess.run(ctx.find_root().params["vnc_command"].format(vm["vnc"]), shell=True)
 
 
 @vms.command("restart")
@@ -180,7 +200,7 @@ def vms_restart(hypervisor, name):
     Restart a virtual machine.
     """
     vm = hypervisor.post(f"/vms/{name}/restart").json()
-    print(f"Vm {name} restarted: {vm['vnc']['url']}")
+    print(f"Vm {name} restarted: {vm['vnc']}")
 
 
 @vms.command("stop")
@@ -242,7 +262,7 @@ def images_list(hypervisor, details):
     List all available images.
     """
     for image in hypervisor.get("/images").json():
-        print(image['name'])
+        print(image["name"])
 
 
 @images.command("show")
@@ -283,7 +303,7 @@ def networks_list(hypervisor, details):
     List all available networks.
     """
     for network in hypervisor.get("/networks").json():
-        print(network['name'])
+        print(network["name"])
 
 
 @networks.command("show")
