@@ -328,7 +328,14 @@ def networks_list(hypervisor, details):
 @pass_hypervisor
 def networks_show(hypervisor, name):
     network = hypervisor.get(f"/networks/{name}").json()
-    print(json.dumps(network, indent=2))
+    print(f"Name: {name}")
+    print("Ip: " + ", ".join([addr['local'] for addr in network['address'][0]['addr_info']]))
+    print("Leases:")
+    for lease in network['leases']:
+        print(f"  {lease['mac']} => {lease['ip']}")
+    print("Stats:")
+    print(f"  Received: {sizeof_fmt(network['stats']['kernel'][name]['rx_bytes'])}")
+    print(f"  Sent: {sizeof_fmt(network['stats']['kernel'][name]['tx_bytes'])}")
 
 
 @networks.command("create")
