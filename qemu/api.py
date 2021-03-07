@@ -12,10 +12,6 @@ from .qmp import Qmp
 from .specs import VmSpec
 
 
-VNC_ADDRESS = "192.168.255.1"
-VNC_PASSWORD = "xyfOhwJY"
-
-
 app = Flask(__name__)
 
 
@@ -97,9 +93,9 @@ def vms_post():
         "runas": "qemu",
         "qmp": f"unix:{chroot}/qmp.sock,server=yes,wait=no",
         "vnc": {
-            "vnc": VNC_ADDRESS,
+            "vnc": os.environ["QEMUCTL_VNC_ADDRESS"],
             "to": "100",
-            "password": VNC_PASSWORD,
+            "password": os.environ["QEMUCTL_VNC_PASSWORD"],
         },
         "writeconfig": f"{chroot}/config.cfg",
     })
