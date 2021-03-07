@@ -155,7 +155,7 @@ def vms_post_restart(name, spec):
 def vms_post_stop(name, spec):
     with Qmp(get_dir(spec["chroot"], "qmp.sock")) as qmp:
         qmp.execute("quit")
-    return vms_get(name=name, spec=spec)
+    return jsonify(None), 204
 
 
 @app.route("/vms/<name>", methods=["DELETE"])
