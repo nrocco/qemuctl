@@ -107,6 +107,10 @@ def vms_post():
     with open(get_dir(spec["chroot"], "spec.json"), "w") as file:
         json.dump(spec, file)
     for drive in spec["drives"]:
+        if "OVMF_CODE.fd" in drive["file"]:
+            run(["install", "--no-target-directory", "--owner=qemu", "--group=kvm", "--mode=775", "/usr/share/OVMF/OVMF_CODE.fd", drive["file"]])
+        if "OVMF_VARS.fd" in drive["file"]:
+            run(["install", "--no-target-directory", "--owner=qemu", "--group=kvm", "--mode=775", "/usr/share/OVMF/OVMF_VARS.fd", drive["file"]])
         if os.path.isfile(drive["file"]):
             continue
         if "size" not in drive and "backing_file" not in drive:
