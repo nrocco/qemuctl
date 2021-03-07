@@ -6,7 +6,6 @@ from unittest.mock import patch
 
 @patch("socket.socket")
 def test_qmp_not_available(mock_socket):
-    instance = mock_socket.return_value
     qmp = Qmp("fuubar.sock")
     assert isinstance(qmp, Qmp)
     assert qmp.path == "fuubar.sock"
@@ -21,7 +20,6 @@ def test_qmp_not_available(mock_socket):
 @patch("os.read")
 @patch("socket.socket")
 def test_qmp_available(mock_socket, mock_read):
-    instance = mock_socket.return_value
     mock_read.side_effect = (
         b'{"QMP":{"version":{"qemu":{"micro":0,"minor":6,"major":1},"package":""},"capabilities":[]}}',
         b'{"return":{}}',
@@ -38,7 +36,6 @@ def test_qmp_available(mock_socket, mock_read):
 @patch("socket.socket")
 def test_qmp_query_status(mock_socket, mock_read, mock_b2a_hex):
     mock_b2a_hex.return_value = b"182912"
-    instance = mock_socket.return_value
     mock_read.side_effect = (
         b'{"QMP":{"version":{"qemu":{"micro":0,"minor":6,"major":1},"package":""},"capabilities":[]}}',
         b'{"return":{}}',
@@ -60,7 +57,6 @@ def test_qmp_query_status(mock_socket, mock_read, mock_b2a_hex):
 @patch("socket.socket")
 def test_qmp_error(mock_socket, mock_read, mock_b2a_hex):
     mock_b2a_hex.return_value = b"182912"
-    instance = mock_socket.return_value
     mock_read.side_effect = (
         b'{"QMP":{"version":{"qemu":{"micro":0,"minor":6,"major":1},"package":""},"capabilities":[]}}',
         b'{"return":{}}',
