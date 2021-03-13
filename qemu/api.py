@@ -1,4 +1,3 @@
-import ipaddress
 import json
 import os
 import shutil
@@ -9,6 +8,7 @@ from functools import wraps
 
 from .dnsmasq import get_dnsmasq_config
 from .qmp import Qmp
+from .specs import NetworkSpec
 from .specs import VmSpec
 
 
@@ -220,17 +220,20 @@ def networks_list():
 def networks_post():
     data = request.get_json()
     chroot = get_dir("networks", data["name"])
-    os.makedirs(chroot)
-    run(["ip", "link", "add", data["name"], "type", "bridge", "stp_state", "1"])
-    run(["ip", "link", "set", data["name"], "up"])
-    if data["ip_range"]:
-        ip_range = ipaddress.ip_network(data["ip_range"])
-        run(["ip", "addr", "add", str(ip_range[1]), "dev", data["name"]])
-        if data["dhcp"]:
-            dnsmasq_conf = get_dnsmasq_config(data["name"], chroot, ip_range)
-            dnsmasq_conf_file = get_dir(chroot, "dnsmasq.conf")
+    if os.path.isdir(chroot):
+        return jsonify(message=f"network {data['name']} already exists"), 400
+    spec = NetworkSpec(data, {"chroot": chroot})
+    os.makedirs(spec["chroot"])
+    with open(get_dir(spec["chroot"], "spec.json"), "w") as file:
+        json.dump(spec, file)
+    run(["ip", "link", "add", spec["name"], "type", "bridge", "stp_state", "1"])
+    run(["ip", "link", "set", spec["name"], "up"])
+    if spec["ip_range"]:
+        run(["ip", "addr", "add", f"{spec.ip_range[1]}/{spec.ip_range.prefixlen}", "dev", spec["name"]])
+        if spec["dhcp"]:
+            dnsmasq_conf_file = get_dir(spec["chroot"], "dnsmasq.conf")
             with open(dnsmasq_conf_file, "w") as file:
-                json.dump(dnsmasq_conf, file)
+                file.write(get_dnsmasq_config(spec))
             run(["dnsmasq", f"--conf-file={dnsmasq_conf_file}"])
 
 

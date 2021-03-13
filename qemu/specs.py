@@ -1,3 +1,4 @@
+import ipaddress
 import os
 import random
 import uuid
@@ -217,3 +218,22 @@ class DriveOpt(QemuOpt):
         if "size" in self:
             args += [self["size"]]
         return args
+
+
+class NetworkSpec(dict):
+    def __init__(self, *args, **kwargs):
+        spec = {
+            "dhcp": True,
+            "dns": False,
+            "ip_range": None,
+            "logging": True,
+            "nameserver": "1.1.1.1",
+        }
+        for arg in args:
+            spec.update(arg)
+        spec.update(kwargs)
+        if "ip_range" in spec and spec["ip_range"]:
+            self.ip_range = ipaddress.ip_network(spec["ip_range"])
+        else:
+            self.ip_range = None
+        super().__init__(spec)
