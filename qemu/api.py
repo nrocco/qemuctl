@@ -154,6 +154,15 @@ def vms_post_stop(name, spec):
     return jsonify(None), 204
 
 
+@app.route("/vms/<name>/monitor", methods=["POST"])
+@pass_vm
+def vms_post_monitor(name, spec):
+    data = request.get_json()
+    with Qmp(get_dir(spec["chroot"], "qmp.sock")) as qmp:
+        result = qmp.execute(data['command'], **data['arguments'])
+    return jsonify(result), 200
+
+
 @app.route("/vms/<name>", methods=["DELETE"])
 @pass_vm
 def vms_delete(name, spec):

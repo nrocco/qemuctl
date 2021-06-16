@@ -238,14 +238,33 @@ def vms_monitor(hypervisor, name, command, arguments):
     Send qmp commands to a virtual machine.
 
     \b
-    system_powerdown
-    qom-list 'path=/machine/peripheral-anon/device[0]'
-    qom-get 'path=/machine/peripheral-anon/device[0]' property=mac
+    To powerdown a VM
+    \b
+        qemuctl vms monitor <name> system_powerdown
+
+    \b
+    To see all available commands
+    \b
+        qemuctl vms monitor <name> query-commands
+
+    \b
+    Eject a cd-rom
+    \b
+        qemuctl vms monitor <name> query-block
+        qemuctl vms monitor <name> eject id=sr01
+
+    \b
+    List internal object tree
+    \b
+        qemuctl vms monitor <name> qom-list 'path=/machine/peripheral-anon/device[0]'
+        qemuctl vms monitor <name> qom-get 'path=/machine/peripheral-anon/device[0]' property=mac
     """
-    arguments = {key: value for key, value in [arg.split("=") for arg in arguments]}
-    with hypervisor.get_qmp(name) as qmp:
-        result = qmp.execute(command, **arguments)
-        print(json.dumps(result, indent=2))
+    data = {
+        'command': command,
+        'arguments': {key: value for key, value in [arg.split("=") for arg in arguments]},
+    }
+    result = hypervisor.post(f"/vms/{name}/monitor", json=data).json()
+    print(json.dumps(result, indent=2))
 
 
 @vms.command("destroy")
