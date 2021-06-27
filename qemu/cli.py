@@ -23,11 +23,11 @@ class Hypervisor(Session):
 
 
 def read_config(ctx, param, value):
-    if not value:
-        return
-    if not isinstance(value, list):
-        value = [value]
-    for file in value:
+    if value:
+        with open(value) as config_file:
+            ctx.default_map = json.load(config_file)
+            return
+    for file in [".qemuctl.json", "~/.qemuctl.json", "/etc/qemuctl.json"]:
         file = os.path.expanduser(file)
         if not os.path.exists(file):
             continue
@@ -48,7 +48,7 @@ pass_hypervisor = click.make_pass_decorator(Hypervisor)
 
 
 @click.group(context_settings=dict(auto_envvar_prefix="QEMU", show_default=True))
-@click.option("--config", default=[".qemuctl.json", "~/.qemuctl.json", "/etc/qemuctl.json"], help="Location to a config file", is_eager=True, callback=read_config)
+@click.option("--config", help="Location to a config file", is_eager=True, callback=read_config)
 @click.option("--hypervisor", help="Hypervisor endpoint")
 @click.option("--vnc-command", help="The vnc program to execute")
 @click.option("-v", "--verbose", count=True, help="Verbose logging, repeat to increase verbosity")
@@ -346,6 +346,9 @@ def networks_list(hypervisor, details):
 @click.argument("name")
 @pass_hypervisor
 def networks_show(hypervisor, name):
+    """
+    Show detailed information for a network.
+    """
     network = hypervisor.get(f"/networks/{name}").json()
     print(f"Name: {name}")
     print("Ip: " + ", ".join([addr['local'] for addr in network['address'][0]['addr_info']]))
