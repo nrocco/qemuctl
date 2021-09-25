@@ -97,7 +97,6 @@ def vms_post():
             "to": "100",
             "password": os.environ["QEMUCTL_VNC_PASSWORD"],
         },
-        "writeconfig": f"{chroot}/config.cfg",
     })
     os.makedirs(spec["chroot"])
     with open(get_dir(spec["chroot"], "spec.json"), "w") as file:

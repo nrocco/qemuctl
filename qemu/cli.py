@@ -130,6 +130,7 @@ def vms_display(ctx, hypervisor, name):
 @vms.command("create")
 @click.option("--dry-run", is_flag=True, help="Do not create the virtual machine")
 @click.option("--snapshot", is_flag=True, help="write to temporary files instead of disk image files")
+@click.option("--uefi", is_flag=True, help="boot vm in uefi mode")
 @click.option("--memory", default="size=1G", help="configure RAM")
 @click.option("--smp", default="cores=2", help="configure CPU topology")
 @click.option("--rtc", default="base=utc,driftfix=slew", help="configure the clock")
@@ -155,6 +156,7 @@ def vms_create(ctx, hypervisor, dry_run, **spec):
     Add drives:
     \b
         --drive disk01.qcow2
+        --drive size=50G
         --drive file=disk01.qcow2
         --drive file=disk01.qcow2,size=50G
         --drive file=/fuu/bar/test.raw
