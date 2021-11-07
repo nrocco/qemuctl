@@ -27,7 +27,7 @@ def read_config(ctx, param, value):
         with open(value) as config_file:
             ctx.default_map = json.load(config_file)
             return
-    for file in [".qemuctl.json", "~/.qemuctl.json", "/etc/qemuctl.json"]:
+    for file in [".qemuctl.json", "~/.config/qemuctl/config.json", "/etc/qemuctl.json"]:
         file = os.path.expanduser(file)
         if not os.path.exists(file):
             continue

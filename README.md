@@ -14,7 +14,7 @@ Use `qemuctl --help` to get help:
       Manage virtual machines using qemu
 
     Options:
-      --config TEXT           Location to a config file  [default: .qemuctl.json, ~/.qemuctl.json, /etc/qemuctl.json]
+      --config TEXT           Location to a config file  [default: .qemuctl.json, ~/.config/qemuctl/config.json, /etc/qemuctl.json]
       --hypervisor TEXT       Hypervisor endpoint
       --state-directory TEXT  Directory on the hypervisor where all state is stored
       --vnc-address TEXT      Address for VNC monitors  [default: 127.0.0.1]
