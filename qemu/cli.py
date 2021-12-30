@@ -106,6 +106,8 @@ def vms_show(hypervisor, name):
         print("Nics:")
         for nic in vm["spec"]["nics"]:
             print(f"  - {nic}")
+    for ip in vm["ips"]:
+        print(f"Ip: {ip['ip']}")
     print(f"State: {vm['state']}")
 
 
@@ -125,6 +127,24 @@ def vms_display(ctx, hypervisor, name):
         subprocess.run(ctx.find_root().params["vnc_command"].format(vm["vnc"]), shell=True)
     else:
         print(vm["vnc"])
+
+
+@vms.command("ssh")
+@click.argument("name")
+@pass_hypervisor
+@click.pass_context
+def vms_ssh(ctx, hypervisor, name):
+    """
+    Setup an ssh session to the vm
+    """
+    vm = hypervisor.get(f"/vms/{name}").json()
+    if not vm["vnc"]:
+        print(f"Vm {name} is not running")
+        ctx.exit(1)
+    if not vm["ips"]:
+        print(f"Vm {name} does not have an ip")
+        ctx.exit(1)
+    subprocess.run(f"ssh {vm['ips'][0]['ip']}", shell=True)
 
 
 @vms.command("create")

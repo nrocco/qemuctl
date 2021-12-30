@@ -7,6 +7,7 @@ from flask import Flask, request, jsonify
 from functools import wraps
 
 from .dnsmasq import get_dnsmasq_config
+from .dnsmasq import get_dnsmasq_leases
 from .qmp import Qmp
 from .specs import NetworkSpec
 from .specs import VmSpec
@@ -54,6 +55,19 @@ def pass_vm(f):
         if "spec" not in kwargs:
             with open(get_dir(path, "spec.json"), "r") as file:
                 kwargs["spec"] = VmSpec(json.load(file))
+        return f(*args, **kwargs)
+    return decorated_function
+
+
+def pass_network(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        path = get_dir("networks", kwargs["name"])
+        if not os.path.isdir(path):
+            return jsonify(message=f"network {kwargs['name']} not found"), 404
+        if "spec" not in kwargs:
+            with open(get_dir(path, "spec.json"), "r") as file:
+                kwargs["spec"] = NetworkSpec(json.load(file))
         return f(*args, **kwargs)
     return decorated_function
 
@@ -122,8 +136,10 @@ def vms_get(name, spec):
         with Qmp(get_dir(spec["chroot"], "qmp.sock")) as qmp:
             vnc_data = qmp.execute("query-vnc")
         vnc = f"vnc://:{spec['vnc']['password']}@{vnc_data['host']}:{vnc_data['service']}"
+    if spec["nics"]:
+        ips = get_dnsmasq_leases(get_dir("networks", spec["nics"][0]["br"], "leases"), mac=spec["nics"][0]["mac"])
     state = False  # TODO pid_cmdline(spec["pidfile"]) == "\x00".join(spec.to_qemu_args())
-    return jsonify(name=name, vnc=vnc, spec=spec, status="running" if vnc else "stopped", state="synced" if state else "dirty")
+    return jsonify(name=name, vnc=vnc, spec=spec, ips=ips, status="running" if vnc else "stopped", state="synced" if state else "dirty")
 
 
 @app.route("/vms/<name>/start", methods=["POST"])
@@ -158,7 +174,7 @@ def vms_post_stop(name, spec):
 def vms_post_monitor(name, spec):
     data = request.get_json()
     with Qmp(get_dir(spec["chroot"], "qmp.sock")) as qmp:
-        result = qmp.execute(data['command'], **data['arguments'])
+        result = qmp.execute(data["command"], **data["arguments"])
     return jsonify(result), 200
 
 
@@ -217,9 +233,11 @@ def images_delete(name):
 def networks_list():
     networks = []
     for name in os.listdir("networks"):
+        with open(get_dir("networks", name, "spec.json"), "r") as file:
+            spec = NetworkSpec(json.load(file))
         networks.append({
             "name": name,
-            "spec": None  # TODO introduce spec files for networks
+            "spec": spec,
         })
     return jsonify(networks)
 
@@ -246,35 +264,23 @@ def networks_post():
 
 
 @app.route("/networks/<name>", methods=["GET"])
-def networks_get(name):
-    chroot = get_dir("networks", name)
-    if not os.path.isdir(chroot):
-        jsonify(f"Network {name} does not exist"), 404
-    data = {}
-    leases_file = get_dir(chroot, "leases")
-    if os.path.isfile(leases_file):
-        data["leases"] = []
-        with open(leases_file, "r") as file:
-            leases = file.readlines()
-        for lease in leases:
-            lease = lease.strip().split(" ")
-            data["leases"].append({
-                "timestamp": lease[0],
-                "mac": lease[1],
-                "ip": lease[2],
-                "host": lease[3],
-                "id": lease[4],
-            })
-    data["routes"] = json.loads(run(["ip", "-j", "route", "show", "dev", name]).stdout)
-    data["arp"] = json.loads(run(["ip", "-j", "neigh", "show", "dev", name]).stdout)
-    data["address"] = json.loads(run(["ip", "-j", "addr", "show", "dev", name]).stdout)
-    data["link"] = json.loads(run(["ip", "-j", "link", "show", "master", name, "type", "bridge_slave"]).stdout)
-    data["stats"] = json.loads(run(["ifstat", "-j", name]).stdout)
+@pass_network
+def networks_get(name, spec):
+    data = {
+        "spec": spec,
+        "leases": get_dnsmasq_leases(get_dir(spec["chroot"], "leases")),
+        "routes": json.loads(run(["ip", "-j", "route", "show", "dev", name]).stdout),
+        "arp": json.loads(run(["ip", "-j", "neigh", "show", "dev", name]).stdout),
+        "address": json.loads(run(["ip", "-j", "addr", "show", "dev", name]).stdout),
+        "link": json.loads(run(["ip", "-j", "link", "show", "master", name, "type", "bridge_slave"]).stdout),
+        "stats": json.loads(run(["ifstat", "-j", name]).stdout),
+    }
     return jsonify(data)
 
 
 @app.route("/networks/<name>", methods=["DELETE"])
-def networks_delete(name):
+@pass_network
+def networks_delete(name, spec):
     pid_kill(get_dir("networks", name, "pidfile"), "dnsmasq")
     try:
         run(["ip", "link", "delete", name])

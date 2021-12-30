@@ -1,3 +1,6 @@
+import os
+
+
 def get_dnsmasq_config(spec):
     config = [
         f"pid-file={spec['chroot']}/pidfile",
@@ -34,3 +37,25 @@ def get_dnsmasq_config(spec):
             f"dhcp-leasefile={spec['chroot']}/leases",
         ]
     return "\n".join(config)
+
+
+def get_dnsmasq_leases(leases_file, mac=None, ip=None):
+    if not os.path.isfile(leases_file):
+        return []
+    with open(leases_file, "r") as file:
+        raw_leases = file.readlines()
+    leases = []
+    for lease in raw_leases:
+        lease = lease.strip().split(" ")
+        if mac and mac != lease[1]:
+            continue
+        if ip and ip != lease[2]:
+            continue
+        leases.append({
+            "timestamp": lease[0],
+            "mac": lease[1],
+            "ip": lease[2],
+            "host": lease[3],
+            "id": lease[4],
+        })
+    return leases
