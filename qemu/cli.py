@@ -120,7 +120,7 @@ def vms_display(ctx, hypervisor, name):
     vm = hypervisor.get(f"/vms/{name}").json()
     if not vm["vnc"]:
         print(f"Vm {name} is not running")
-        return
+        ctx.exit(1)
     if ctx.find_root().params["vnc_command"]:
         subprocess.run(ctx.find_root().params["vnc_command"].format(vm["vnc"]), shell=True)
     else:
