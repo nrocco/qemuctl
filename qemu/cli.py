@@ -128,6 +128,7 @@ def vms_display(ctx, hypervisor, name):
 
 
 @vms.command("create")
+@click.option("--console/--no-console", is_flag=True, default=True, help="Open the VNC console after creating the machine")
 @click.option("--dry-run", is_flag=True, help="Do not create the virtual machine")
 @click.option("--snapshot", is_flag=True, help="write to temporary files instead of disk image files")
 @click.option("--uefi", is_flag=True, help="boot vm in uefi mode")
@@ -143,7 +144,7 @@ def vms_display(ctx, hypervisor, name):
 @click.argument("name")
 @pass_hypervisor
 @click.pass_context
-def vms_create(ctx, hypervisor, dry_run, **spec):
+def vms_create(ctx, hypervisor, console, dry_run, **spec):
     """
     Create a virtual machine.
 
@@ -189,7 +190,7 @@ def vms_create(ctx, hypervisor, dry_run, **spec):
     """
     vm = hypervisor.post("/vms", json=spec).json()
     print(f"Vm {vm['name']} created: {vm['vnc']}")
-    if ctx.find_root().params["vnc_command"]:
+    if console and ctx.find_root().params["vnc_command"]:
         subprocess.run(ctx.find_root().params["vnc_command"].format(vm["vnc"]), shell=True)
 
 
