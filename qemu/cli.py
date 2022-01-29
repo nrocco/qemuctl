@@ -37,6 +37,8 @@ def read_config(ctx, param, value):
 
 
 def sizeof_fmt(num, suffix='B'):
+    if num == 0:
+        return '0{}'.format(suffix)
     magnitude = int(math.floor(math.log(num, 1024)))
     val = num / math.pow(1024, magnitude)
     if magnitude > 7:
