@@ -183,8 +183,8 @@ def vms_create(ctx, hypervisor, console, dry_run, **spec):
         --drive file=disk01.qcow2
         --drive file=disk01.qcow2,size=50G
         --drive file=/fuu/bar/test.raw
-        --drive file=disk01.qcow2,backing_file=/fuu/bar/test.qcow2
-        --drive backing_file=/fuu/bar/test.qcow2
+        --drive file=disk01.qcow2,backing_file=disks/test.qcow2
+        --drive backing_file=disks/bar/test.qcow2
 
     \b
     Add networks:
@@ -208,7 +208,7 @@ def vms_create(ctx, hypervisor, console, dry_run, **spec):
     \b
     Add a cdrom:
     \b
-        --cdrom /var/lib/qemu/images/Fedora-Server-netinst-x86_64-33-1.2.iso
+        --cdrom isos/Fedora-Server-netinst-x86_64-33-1.2.iso
     """
     vm = hypervisor.post("/vms", json=spec).json()
     print(f"Vm {vm['name']} created: {vm['vnc']}")

@@ -1,10 +1,11 @@
-from qemu.dnsmasq import get_dnsmasq_config
+from qemu.networks import generate_dnsmasq_config
 from qemu.specs import NetworkSpec
 
 
 def test_config_with_basics():
-    config = get_dnsmasq_config(NetworkSpec({"name": "br0", "chroot": "/chroot", "logging": False}))
-    assert "pid-file=/chroot/pidfile" in config
+    spec = NetworkSpec({"name": "br0", "logging": False})
+    config = generate_dnsmasq_config(spec)
+    assert "pid-file=pidfile" in config
     assert "interface=br0" in config
     assert "except-interface=lo" in config
     assert "bind-interfaces" in config
@@ -13,25 +14,28 @@ def test_config_with_basics():
 
 
 def test_config_with_logging():
-    config = get_dnsmasq_config(NetworkSpec({"name": "br0", "chroot": "/chroot"}))
+    spec = NetworkSpec({"name": "br0"})
+    config = generate_dnsmasq_config(spec)
     assert "log-queries" in config
-    assert "log-facility=/chroot/dnsmasq.log" in config
+    assert "log-facility=dnsmasq.log" in config
 
 
 def test_config_with_dns():
-    config = get_dnsmasq_config(NetworkSpec({"name": "br0", "chroot": "/chroot", "dns": True}))
+    spec = NetworkSpec({"name": "br0", "dns": True})
+    config = generate_dnsmasq_config(spec)
     assert "strict-order" in config
     assert "domain-needed" in config
     assert "bogus-priv" in config
     assert "no-hosts" in config
-    assert "addn-hosts=/chroot/addnhosts" in config
+    assert "addn-hosts=addnhosts" in config
 
 
 def test_config_with_dhcp():
-    config = get_dnsmasq_config(NetworkSpec({"name": "br0", "chroot": "/chroot", "ip_range": "127.0.0.0/24"}))
+    spec = NetworkSpec({"name": "br0", "ip_range": "127.0.0.0/24"})
+    config = generate_dnsmasq_config(spec)
     assert "dhcp-range=127.0.0.2,127.0.0.254,255.255.255.0" in config
     assert "dhcp-no-override" in config
     assert "dhcp-authoritative" in config
     assert "dhcp-lease-max=253" in config
-    assert "dhcp-hostsfile=/chroot/hostsfile" in config
-    assert "dhcp-leasefile=/chroot/leases" in config
+    assert "dhcp-hostsfile=hostsfile" in config
+    assert "dhcp-leasefile=leases" in config

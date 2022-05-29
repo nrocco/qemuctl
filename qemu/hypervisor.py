@@ -12,9 +12,15 @@ class Hypervisor:
         self.vms = Vms(self)
         self.images = Images(self)
         self.networks = Networks(self)
+        self.config = {
+            'vnc': {
+                'address': os.environ.get("QEMUCTL_VNC_ADDRESS", "127.0.0.1"),
+                'password': os.environ.get("QEMUCTL_VNC_PASSWORD", None),
+            },
+        }
 
-    def exec(self, command, text=True, capture_output=True, check=True):
-        return subprocess.run(command, text=text, capture_output=capture_output, check=check)
+    def exec(self, command, text=True, capture_output=True, check=True, cwd=None):
+        return subprocess.run(command, text=text, capture_output=capture_output, check=check, cwd=cwd)
 
     def pid_kill(self, pidfile, name=None):
         args = ["pkill", "--pidfile", pidfile]

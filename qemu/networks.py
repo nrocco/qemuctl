@@ -15,7 +15,7 @@ class Network:
             json.dump(spec, file)
         if spec["ip_range"] and spec["dhcp"]:
             with open(os.path.join(network.directory, "dnsmasq.conf"), "w") as file:
-                file.write(generate_dnsmasq_config(network.directory, spec))
+                file.write(generate_dnsmasq_config(spec))
         return network
 
     def __init__(self, hypervisor, name):
@@ -91,8 +91,7 @@ class Network:
             self.hypervisor.exec(["ip", "addr", "add", f"{spec.ip_range[1]}/{spec.ip_range.prefixlen}", "dev", spec["name"]])
         if spec["dhcp"]:
             # TODO check if dnsmasq is already running
-            dnsmasq_conf_file = os.path.join(self.directory, "dnsmasq.conf")
-            self.hypervisor.exec(["dnsmasq", f"--conf-file={dnsmasq_conf_file}"])
+            self.hypervisor.exec(["dnsmasq", "--conf-file=dnsmasq.conf"], cwd=self.directory)
         return self
 
     def stop(self):
@@ -133,18 +132,20 @@ class Networks:
         return Network.create_from_spec(self.hypervisor, spec)
 
 
-def generate_dnsmasq_config(chroot, spec):
+def generate_dnsmasq_config(spec):
     config = [
-        f"pid-file={chroot}/pidfile",
+        "pid-file=pidfile",
         f"interface={spec['name']}",
         "except-interface=lo",
         "bind-interfaces",
+        "no-poll",
         "user=qemu",
     ]
     if spec['logging']:
         config += [
+            "log-dhcp",
             "log-queries",
-            f"log-facility={chroot}/dnsmasq.log",
+            "log-facility=dnsmasq.log",
         ]
     if spec['dns']:
         config += [
@@ -152,7 +153,7 @@ def generate_dnsmasq_config(chroot, spec):
             "domain-needed",
             "bogus-priv",
             "no-hosts",
-            f"addn-hosts={chroot}/addnhosts",
+            "addn-hosts=addnhosts",
         ]
     else:
         config += [
@@ -165,7 +166,7 @@ def generate_dnsmasq_config(chroot, spec):
             "dhcp-authoritative",
             f"dhcp-option=6,{spec['nameserver']}",
             f"dhcp-lease-max={spec.ip_range.num_addresses - 3}",
-            f"dhcp-hostsfile={chroot}/hostsfile",
-            f"dhcp-leasefile={chroot}/leases",
+            "dhcp-hostsfile=hostsfile",
+            "dhcp-leasefile=leases",
         ]
     return "\n".join(config)

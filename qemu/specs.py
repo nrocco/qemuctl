@@ -88,10 +88,10 @@ class VmSpec(dict):
             elif key == "nics":
                 spec[key] = [NicOpt({"id": f"nic{index}"}, nic) for index, nic in enumerate(value)]
             elif key == "uefi" and value:
-                spec['drives'].append(DriveOpt(f"if=pflash,format=raw,readonly=on,file={defaults['chroot']}/OVMF_CODE.fd"))
-                spec['drives'].append(DriveOpt(f"if=pflash,format=raw,file={defaults['chroot']}/OVMF_VARS.fd"))
+                spec['drives'].append(DriveOpt("if=pflash,format=raw,readonly=on,file=OVMF_CODE.fd"))
+                spec['drives'].append(DriveOpt("if=pflash,format=raw,file=OVMF_VARS.fd"))
             elif key == "drives":
-                spec[key] = [DriveOpt({"id": f"hd{index}", "chroot": defaults["chroot"]}, drive) for index, drive in enumerate(value)]
+                spec[key] = [DriveOpt({"id": f"hd{index}"}, drive) for index, drive in enumerate(value)]
             elif key in QEMU_LIST_OPTS:
                 if key not in spec:
                     spec[key] = []
@@ -190,22 +190,19 @@ class NicOpt(QemuOpt):
 
 
 class DriveOpt(QemuOpt):
-    non_qemu_opts = ["chroot", "size", "backing_file"]
+    non_qemu_opts = ["size", "backing_file"]
 
     def __init__(self, *args, **kwargs):
         super().__init__("drive", *args, **kwargs)
         if "if" not in self:
             self["if"] = "virtio"
-        if "file" not in self and "backing_file" in self:
-            _, ext = os.path.splitext(self["backing_file"])
+        if "file" not in self:
+            ext = ".qcow2" if "backing_file" not in self else os.path.splitext(self["backing_file"])[1]
             self["file"] = f"{self['id'] if 'id' in self else 'disk'}{ext}"
-        if "file" in self and "chroot" in self and self["chroot"] and not self["file"].startswith("/"):
-            self["file"] = os.path.join(self["chroot"], self["file"])
         if "format" not in self:
-            _, ext = os.path.splitext(self["file"])
-            if ext in [".qcow2"]:
+            if self["file"].endswith(".qcow2"):
                 self["format"] = "qcow2"
-            elif ext in [".raw", ".img"]:
+            else:
                 self["format"] = "raw"
 
     def to_qemu_img_args(self):

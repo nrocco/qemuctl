@@ -13,27 +13,35 @@ class Vm:
         os.makedirs(vm.directory)
         spec.update({
             "chroot": vm.directory,
-            "pidfile": f"{vm.directory}/pidfile",
+            "pidfile": "pidfile",
             "runas": "qemu",
-            "qmp": f"unix:{vm.directory}/qmp.sock,server=yes,wait=no",
+            "qmp": "unix:qmp.sock,server=yes,wait=no",
             "vnc": {
-                "vnc": os.environ["QEMUCTL_VNC_ADDRESS"],
+                "vnc": hypervisor.config["vnc"]["address"],
                 "to": "100",
-                "password": os.environ["QEMUCTL_VNC_PASSWORD"],
+                "password": hypervisor.config["vnc"]["password"],
             },
         })
         with open(os.path.join(vm.directory, "spec.json"), "w") as file:
             json.dump(spec, file)
         for drive in spec["drives"]:
             if "OVMF_CODE.fd" in drive["file"]:
-                vm.hypervisor.exec(["install", "--no-target-directory", "--owner=qemu", "--group=kvm", "--mode=775", "/usr/share/OVMF/OVMF_CODE.fd", drive["file"]])
+                vm.hypervisor.exec(["install", "--no-target-directory", "--owner=qemu", "--group=kvm", "--mode=775", "/usr/share/OVMF/OVMF_CODE.fd", drive["file"]], cwd=vm.directory)
+                continue
             if "OVMF_VARS.fd" in drive["file"]:
-                vm.hypervisor.exec(["install", "--no-target-directory", "--owner=qemu", "--group=kvm", "--mode=775", "/usr/share/OVMF/OVMF_VARS.fd", drive["file"]])
-            if os.path.isfile(drive["file"]):
+                vm.hypervisor.exec(["install", "--no-target-directory", "--owner=qemu", "--group=kvm", "--mode=775", "/usr/share/OVMF/OVMF_VARS.fd", drive["file"]], cwd=vm.directory)
                 continue
-            if "size" not in drive and "backing_file" not in drive:
-                continue
-            vm.hypervisor.exec(drive.to_qemu_img_args())
+            if "backing_file" in drive:
+                src = hypervisor.images.get(drive["backing_file"]).file
+                dst = os.path.join(vm.directory, drive["backing_file"])
+                os.makedirs(os.path.dirname(dst))
+                os.link(src, dst)
+            vm.hypervisor.exec(drive.to_qemu_img_args(), cwd=vm.directory)
+        if "cdrom" in spec and spec["cdrom"]:
+            src = hypervisor.images.get(spec["cdrom"]).file
+            dst = os.path.join(vm.directory, spec["cdrom"])
+            os.makedirs(os.path.dirname(dst))
+            os.link(src, dst)
         return vm
 
     def __init__(self, hypervisor, name):
@@ -52,7 +60,11 @@ class Vm:
 
     @property
     def drives(self):
-        return [json.loads(self.hypervisor.exec(["qemu-img", "info", "--force-share", "--output=json", drive["file"]]).stdout) for drive in self.spec["drives"]]
+        drives = []
+        for drive in self.spec["drives"]:
+            result = self.hypervisor.exec(["qemu-img", "info", "--force-share", "--output=json", drive["file"]], cwd=self.directory)
+            drives.append(json.loads(result.stdout))
+        return drives
 
     @property
     def monitor(self):
@@ -60,11 +72,14 @@ class Vm:
 
     @property
     def is_running(self):
-        return os.path.isfile(os.path.join(self.directory, "pidfile"))
+        pidfile = os.path.join(self.directory, "pidfile")
+        if not os.path.isfile(pidfile):
+            return False
+        return self.hypervisor.pid_exists(pidfile, "qemu")
 
     def start(self):
         spec = self.spec
-        self.hypervisor.exec(spec.to_qemu_args())
+        self.hypervisor.exec(spec.to_qemu_args(), cwd=self.directory)
         with self.monitor as monitor:
             if spec["vnc"]["password"]:
                 monitor.execute("change-vnc-password", password=spec["vnc"]["password"])
