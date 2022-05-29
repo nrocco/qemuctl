@@ -198,7 +198,7 @@ def vms_create(ctx, hypervisor, console, dry_run, **spec):
     Set boot order:
     \b
         --boot order=n
-        --boot order=d
+        --boot order=c,once=d
 
     \b
     Set serial number:

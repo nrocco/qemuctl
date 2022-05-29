@@ -30,4 +30,7 @@ coverage:
 	pytest --no-cov-on-fail --cov=$(MODULE) --cov-report=html --cov-report=term -vv tests/
 
 
+.PHONY: sdist
+sdist:
+	python setup.py sdist
 .DEFAULT_GOAL := ci

@@ -48,6 +48,14 @@ def test_vm_with_kvm_disabled():
     assert "--enable-kvm" not in vm.to_qemu_args()
 
 
+def test_vm_with_uefi_boot():
+    vm = VmSpec(uefi=True)
+    assert "OVMF_CODE.fd" == vm["drives"][0]["file"]
+    assert "OVMF_VARS.fd" == vm["drives"][1]["file"]
+    assert "if=pflash,format=raw,readonly=on,file=OVMF_CODE.fd" in vm.to_qemu_args()
+    assert "if=pflash,format=raw,file=OVMF_VARS.fd" in vm.to_qemu_args()
+
+
 def test_vm_with_shutdown_enabled():
     vm = VmSpec(shutdown=True)
     assert True is vm["shutdown"]

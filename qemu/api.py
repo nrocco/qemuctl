@@ -1,60 +1,34 @@
-import json
-import os
-import shutil
-import subprocess
-
 from flask import Flask, request, jsonify
 from functools import wraps
 
-from .dnsmasq import get_dnsmasq_config
-from .dnsmasq import get_dnsmasq_leases
-from .qmp import Qmp
+from .hypervisor import Hypervisor
 from .specs import NetworkSpec
 from .specs import VmSpec
 
 
 app = Flask(__name__)
 
-
-def run(command):
-    return subprocess.run(command, text=True, capture_output=True, check=True)
-
-
-def get_dir(*parts):
-    return os.path.abspath(os.path.normpath(os.path.join(*parts)))
-
-
-def pid_cmdline(pidfile):
-    with open(pidfile, "r") as file:
-        pid = file.read().strip()
-    with open(f"/proc/{pid}/cmdline", "r") as file:
-        cmdline = file.read().strip()
-    return cmdline
-
-
-def pid_kill(pidfile, name=None):
-    args = ["pkill", "--pidfile", pidfile]
-    if name:
-        args += [name]
-    return subprocess.run(args, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode == 0
-
-
-def pid_exists(pidfile, name=None):
-    args = ["pgrep", "--pidfile", pidfile]
-    if name:
-        args += [name]
-    return subprocess.run(args, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode == 0
+hypervisor = Hypervisor("")
 
 
 def pass_vm(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        path = get_dir("vms", kwargs["name"])
-        if not os.path.isdir(path):
-            return jsonify(message=f"vm {kwargs['name']} not found"), 404
-        if "spec" not in kwargs:
-            with open(get_dir(path, "spec.json"), "r") as file:
-                kwargs["spec"] = VmSpec(json.load(file))
+        try:
+            kwargs['vm'] = hypervisor.vms.get(kwargs["name"])
+        except Exception as e:
+            return jsonify(message=str(e)), 404
+        return f(*args, **kwargs)
+    return decorated_function
+
+
+def pass_image(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        try:
+            kwargs['image'] = hypervisor.images.get(kwargs["name"])
+        except Exception as e:
+            return jsonify(message=str(e)), 404
         return f(*args, **kwargs)
     return decorated_function
 
@@ -62,12 +36,10 @@ def pass_vm(f):
 def pass_network(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        path = get_dir("networks", kwargs["name"])
-        if not os.path.isdir(path):
-            return jsonify(message=f"network {kwargs['name']} not found"), 404
-        if "spec" not in kwargs:
-            with open(get_dir(path, "spec.json"), "r") as file:
-                kwargs["spec"] = NetworkSpec(json.load(file))
+        try:
+            kwargs['network'] = hypervisor.networks.get(kwargs["name"])
+        except Exception as e:
+            return jsonify(message=str(e)), 404
         return f(*args, **kwargs)
     return decorated_function
 
@@ -83,208 +55,142 @@ def root():
 
 @app.route("/vms", methods=["GET"])
 def vms_list():
+    brief = request.args.get("brief", "").lower() in ["true", "yes", "y", "1"]
     vms = []
-    for name in os.listdir("vms"):
-        with open(get_dir("vms", name, "spec.json"), "r") as file:
-            spec = VmSpec(json.load(file))
+    for vm in hypervisor.vms.all():
         vms.append({
-            "name": name,
-            "spec": spec,
-            "status": "running" if pid_exists(spec["pidfile"], "qemu") else "stopped",
+            "name": vm.name,
+            "spec": None if brief else vm.spec,
+            "status": "running" if vm.is_running else "stopped",
         })
-    return jsonify(vms)
+    return jsonify(vms), 200
 
 
 @app.route("/vms", methods=["POST"])
 def vms_post():
-    data = request.get_json()
-    chroot = get_dir("vms", data["name"])
-    if os.path.isdir(chroot):
-        return jsonify(message=f"vm {data['name']} already exists"), 400
-    spec = VmSpec(data, {
-        "chroot": chroot,
-        "pidfile": f"{chroot}/pidfile",
-        "runas": "qemu",
-        "qmp": f"unix:{chroot}/qmp.sock,server=yes,wait=no",
-        "vnc": {
-            "vnc": os.environ["QEMUCTL_VNC_ADDRESS"],
-            "to": "100",
-            "password": os.environ["QEMUCTL_VNC_PASSWORD"],
-        },
-    })
-    os.makedirs(spec["chroot"])
-    with open(get_dir(spec["chroot"], "spec.json"), "w") as file:
-        json.dump(spec, file)
-    for drive in spec["drives"]:
-        if "OVMF_CODE.fd" in drive["file"]:
-            run(["install", "--no-target-directory", "--owner=qemu", "--group=kvm", "--mode=775", "/usr/share/OVMF/OVMF_CODE.fd", drive["file"]])
-        if "OVMF_VARS.fd" in drive["file"]:
-            run(["install", "--no-target-directory", "--owner=qemu", "--group=kvm", "--mode=775", "/usr/share/OVMF/OVMF_VARS.fd", drive["file"]])
-        if os.path.isfile(drive["file"]):
-            continue
-        if "size" not in drive and "backing_file" not in drive:
-            continue
-        run(drive.to_qemu_img_args())
-    return vms_post_start(name=spec["name"], spec=spec)
+    spec = VmSpec(request.get_json())
+    vm = hypervisor.vms.create(spec).start()
+    return vms_get(name=vm.name, vm=vm)
 
 
-@app.route("/vms/<name>", methods=["GET"])
+@app.route("/vms/<string:name>", methods=["GET"])
 @pass_vm
-def vms_get(name, spec):
+def vms_get(name, vm):
     vnc = None
-    if pid_exists(spec["pidfile"], "qemu"):
-        with Qmp(get_dir(spec["chroot"], "qmp.sock")) as qmp:
-            vnc_data = qmp.execute("query-vnc")
+    spec = vm.spec
+    if vm.is_running:
+        with vm.monitor as monitor:
+            vnc_data = monitor.execute("query-vnc")
         vnc = f"vnc://:{spec['vnc']['password']}@{vnc_data['host']}:{vnc_data['service']}"
     if spec["nics"]:
-        ips = get_dnsmasq_leases(get_dir("networks", spec["nics"][0]["br"], "leases"), mac=spec["nics"][0]["mac"])
-    state = False  # TODO pid_cmdline(spec["pidfile"]) == "\x00".join(spec.to_qemu_args())
-    return jsonify(name=name, vnc=vnc, spec=spec, ips=ips, status="running" if vnc else "stopped", state="synced" if state else "dirty")
+        ips = [lease for lease in vm.hypervisor.networks.get(spec["nics"][0]["br"]).leases if lease["mac"] == spec["nics"][0]["mac"]]
+    state = False
+    return jsonify(name=name, vnc=vnc, spec=spec, ips=ips, status="running" if vnc else "stopped", state="synced" if state else "dirty"), 200
 
 
-@app.route("/vms/<name>/start", methods=["POST"])
+@app.route("/vms/<string:name>/start", methods=["POST"])
 @pass_vm
-def vms_post_start(name, spec):
-    run(spec.to_qemu_args())
-    with Qmp(get_dir(spec["chroot"], "qmp.sock")) as qmp:
-        if spec["vnc"]["password"]:
-            qmp.execute("change-vnc-password", password=spec["vnc"]["password"])
-        qmp.execute("cont")
-    return vms_get(name=name, spec=spec)
+def vms_post_start(name, vm):
+    vm.start()
+    return vms_get(name=name, vm=vm)
 
 
-@app.route("/vms/<name>/restart", methods=["POST"])
+@app.route("/vms/<string:name>/restart", methods=["POST"])
 @pass_vm
-def vms_post_restart(name, spec):
-    with Qmp(get_dir(spec["chroot"], "qmp.sock")) as qmp:
-        qmp.execute("system_reset")
-    return vms_get(name=name, spec=spec)
+def vms_post_restart(name, vm):
+    vm.restart()
+    return vms_get(name=name, vm=vm)
 
 
-@app.route("/vms/<name>/stop", methods=["POST"])
+@app.route("/vms/<string:name>/stop", methods=["POST"])
 @pass_vm
-def vms_post_stop(name, spec):
-    with Qmp(get_dir(spec["chroot"], "qmp.sock")) as qmp:
-        qmp.execute("quit")
-    return jsonify(None), 204
+def vms_post_stop(name, vm):
+    vm.stop()
+    return '', 204
 
 
-@app.route("/vms/<name>/monitor", methods=["POST"])
+@app.route("/vms/<string:name>/monitor", methods=["POST"])
 @pass_vm
-def vms_post_monitor(name, spec):
+def vms_post_monitor(name, vm):
     data = request.get_json()
-    with Qmp(get_dir(spec["chroot"], "qmp.sock")) as qmp:
-        result = qmp.execute(data["command"], **data["arguments"])
+    with vm.monitor as monitor:
+        result = monitor.execute(data["command"], **data["arguments"])
     return jsonify(result), 200
 
 
-@app.route("/vms/<name>", methods=["DELETE"])
+@app.route("/vms/<string:name>", methods=["DELETE"])
 @pass_vm
-def vms_delete(name, spec):
-    pid_kill(spec["pidfile"], "qemu")
-    shutil.rmtree(get_dir("vms", name))
-    return jsonify(None), 204
+def vms_delete(name, vm):
+    vm.destroy()
+    return '', 204
 
 
-@app.route("/vms/<name>/drives", methods=["GET"])
+@app.route("/vms/<string:name>/drives", methods=["GET"])
 @pass_vm
-def vms_get_drives(name, spec):
-    drives = []
-    for drive in spec["drives"]:
-        output = run(["qemu-img", "info", "--output=json", drive["file"]])
-        drives.append(json.loads(output.stdout))
-    return jsonify(drives)
+def vms_get_drives(name, vm):
+    return jsonify(vm.drives), 200
 
 
 @app.route("/images", methods=["GET"])
 def images_list():
+    brief = request.args.get("brief", "").lower() in ["true", "yes", "y", "1"]
     images = []
-    for name in os.listdir("images"):
-        output = run(["qemu-img", "info", "--output=json", get_dir("images", name)])
+    for image in hypervisor.images.all():
         images.append({
-            "name": name,
-            "spec": json.loads(output.stdout),
+            "name": image.name,
+            "spec": None if brief else image.spec,
         })
-    return jsonify(images)
+    return jsonify(images), 200
 
 
-@app.route("/images/<name>", methods=["GET"])
-def images_get(name):
-    file = get_dir("images", name)
-    if not os.path.isfile(file):
-        return jsonify(message=f"Image {name} does not exist"), 404
-    output = run(["qemu-img", "info", "--output=json", file])
-    return jsonify(json.loads(output.stdout))
+@app.route("/images/<path:name>", methods=["GET"])
+@pass_image
+def images_get(name, image):
+    return jsonify(image.spec), 200
 
 
-@app.route("/images/<name>", methods=["DELETE"])
-def images_delete(name):
-    file = get_dir("images", name)
-    if not os.path.isfile(file):
-        return jsonify(message=f"Image {name} does not exist"), 404
-    os.remove(file)
-    return jsonify(None), 204
-
-    def list_networks(self, details=False):
-        return self.run(["ls", "-lh1" if details else "-h1", self.get_networks_dir()]).stdout.splitlines()
+@app.route("/images/<path:name>", methods=["DELETE"])
+@pass_image
+def images_delete(name, image):
+    image.delete()
+    return '', 204
 
 
 @app.route("/networks", methods=["GET"])
 def networks_list():
+    brief = request.args.get("brief", "").lower() in ["true", "yes", "y", "1"]
     networks = []
-    for name in os.listdir("networks"):
-        with open(get_dir("networks", name, "spec.json"), "r") as file:
-            spec = NetworkSpec(json.load(file))
+    for network in hypervisor.networks.all():
         networks.append({
-            "name": name,
-            "spec": spec,
+            "name": network.name,
+            "spec": None if brief else network.spec,
         })
-    return jsonify(networks)
+    return jsonify(networks), 200
 
 
 @app.route("/networks", methods=["POST"])
 def networks_post():
-    data = request.get_json()
-    chroot = get_dir("networks", data["name"])
-    if os.path.isdir(chroot):
-        return jsonify(message=f"network {data['name']} already exists"), 400
-    spec = NetworkSpec(data, {"chroot": chroot})
-    os.makedirs(spec["chroot"])
-    with open(get_dir(spec["chroot"], "spec.json"), "w") as file:
-        json.dump(spec, file)
-    run(["ip", "link", "add", spec["name"], "type", "bridge", "stp_state", "1"])
-    run(["ip", "link", "set", spec["name"], "up"])
-    if spec["ip_range"]:
-        run(["ip", "addr", "add", f"{spec.ip_range[1]}/{spec.ip_range.prefixlen}", "dev", spec["name"]])
-        if spec["dhcp"]:
-            dnsmasq_conf_file = get_dir(spec["chroot"], "dnsmasq.conf")
-            with open(dnsmasq_conf_file, "w") as file:
-                file.write(get_dnsmasq_config(spec))
-            run(["dnsmasq", f"--conf-file={dnsmasq_conf_file}"])
+    spec = NetworkSpec(request.get_json())
+    hypervisor.networks.create(spec).start()
+    return '', 204
 
 
-@app.route("/networks/<name>", methods=["GET"])
+@app.route("/networks/<string:name>", methods=["GET"])
 @pass_network
-def networks_get(name, spec):
-    data = {
-        "spec": spec,
-        "leases": get_dnsmasq_leases(get_dir(spec["chroot"], "leases")),
-        "routes": json.loads(run(["ip", "-j", "route", "show", "dev", name]).stdout),
-        "arp": json.loads(run(["ip", "-j", "neigh", "show", "dev", name]).stdout),
-        "address": json.loads(run(["ip", "-j", "addr", "show", "dev", name]).stdout),
-        "link": json.loads(run(["ip", "-j", "link", "show", "master", name, "type", "bridge_slave"]).stdout),
-        "stats": json.loads(run(["ifstat", "-j", name]).stdout),
-    }
-    return jsonify(data)
+def networks_get(name, network):
+    return jsonify({
+        "spec": network.spec,
+        "leases": network.leases,
+        "routes": network.routes,
+        "arp": network.arp,
+        "address": network.address,
+        "link": network.link,
+        "stats": network.stats,
+    }), 200
 
 
-@app.route("/networks/<name>", methods=["DELETE"])
+@app.route("/networks/<string:name>", methods=["DELETE"])
 @pass_network
-def networks_delete(name, spec):
-    pid_kill(get_dir("networks", name, "pidfile"), "dnsmasq")
-    try:
-        run(["ip", "link", "delete", name])
-    except subprocess.CalledProcessError:
-        pass
-    shutil.rmtree(get_dir("networks", name))
-    return jsonify(None), 204
+def networks_delete(name, network):
+    network.destroy()
+    return '', 204

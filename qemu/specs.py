@@ -88,8 +88,8 @@ class VmSpec(dict):
             elif key == "nics":
                 spec[key] = [NicOpt({"id": f"nic{index}"}, nic) for index, nic in enumerate(value)]
             elif key == "uefi" and value:
-                spec['drives'].append(DriveOpt("if=pflash,format=raw,readonly=on,file=OVMF_CODE.fd"))
-                spec['drives'].append(DriveOpt("if=pflash,format=raw,file=OVMF_VARS.fd"))
+                spec['drives'].append(DriveOpt(f"if=pflash,format=raw,readonly=on,file={defaults['chroot']}/OVMF_CODE.fd"))
+                spec['drives'].append(DriveOpt(f"if=pflash,format=raw,file={defaults['chroot']}/OVMF_VARS.fd"))
             elif key == "drives":
                 spec[key] = [DriveOpt({"id": f"hd{index}", "chroot": defaults["chroot"]}, drive) for index, drive in enumerate(value)]
             elif key in QEMU_LIST_OPTS:
