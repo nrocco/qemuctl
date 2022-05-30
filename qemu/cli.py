@@ -210,6 +210,9 @@ def vms_create(ctx, hypervisor, console, dry_run, **spec):
     \b
         --cdrom isos/Fedora-Server-netinst-x86_64-33-1.2.iso
     """
+    if dry_run:
+        print(json.dumps(spec, indent=2))
+        return
     vm = hypervisor.post("/vms", json=spec).json()
     print(f"Vm {vm['name']} created: {vm['vnc']}")
     if console and ctx.find_root().params["vnc_command"]:
