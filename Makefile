@@ -1,7 +1,7 @@
 MODULE = qemu
 
 
-ci: clean lint test
+ci: clean lint coverage
 
 
 .PHONY: clean
@@ -22,15 +22,17 @@ lint:
 
 .PHONY: test
 test:
-	pytest -vv
+	python -m pytest -vv
 
 
 .PHONY: coverage
 coverage:
-	pytest --no-cov-on-fail --cov=$(MODULE) --cov-report=html --cov-report=term -vv tests/
+	python -m pytest -vv --no-cov-on-fail --cov=$(MODULE) --cov-report=html --cov-report=term tests/
 
 
-.PHONY: sdist
-sdist:
-	python setup.py sdist
+.PHONY: build
+build: clean
+	python -m build --no-isolation
+
+
 .DEFAULT_GOAL := ci

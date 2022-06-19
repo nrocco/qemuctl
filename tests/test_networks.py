@@ -17,7 +17,7 @@ def test_config_with_logging():
     spec = NetworkSpec({"name": "br0"})
     config = generate_dnsmasq_config(spec)
     assert "log-queries" in config
-    assert "log-facility=dnsmasq.log" in config
+    assert "log-facility=./dnsmasq.log" in config
 
 
 def test_config_with_dns():

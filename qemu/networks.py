@@ -145,7 +145,7 @@ def generate_dnsmasq_config(spec):
         config += [
             "log-dhcp",
             "log-queries",
-            "log-facility=dnsmasq.log",
+            "log-facility=./dnsmasq.log",
         ]
     if spec['dns']:
         config += [
