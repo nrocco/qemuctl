@@ -1,7 +1,5 @@
 import json
 import os
-import shutil
-import subprocess
 
 from .specs import NetworkSpec
 
@@ -46,7 +44,7 @@ class Network:
 
     @property
     def address(self):
-        return json.loads(self.hypervisor.exec(["ip", "-j", "addr", "show", "dev", self.name]).stdout)
+        return json.loads(self.hypervisor.exec(["ip", "-j", "addr", "show", "dev", self.name], check=False).stdout)
 
     @property
     def link(self):
@@ -76,10 +74,7 @@ class Network:
         return leases
 
     def start(self):
-        try:
-            bridge_address = self.address
-        except subprocess.CalledProcessError:
-            bridge_address = None
+        bridge_address = self.address
         spec = self.spec
         if not bridge_address:
             self.hypervisor.exec(["ip", "link", "add", spec["name"], "type", "bridge", "stp_state", "1"])
@@ -101,11 +96,8 @@ class Network:
 
     def destroy(self):
         self.stop()
-        try:
-            self.hypervisor.exec(["ip", "link", "delete", self.name])
-        except subprocess.CalledProcessError:
-            pass
-        shutil.rmtree(self.directory)
+        self.hypervisor.exec(["ip", "link", "delete", self.name], check=False)
+        self.hypervisor.remove_dir(self.directory)
 
 
 class Networks:
