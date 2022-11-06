@@ -13,7 +13,7 @@ class Image:
 
     @property
     def spec(self):
-        return json.loads(self.hypervisor.exec(["qemu-img", "info", "--force-share", "--output=json", self.file]).stdout)
+        return json.loads(self.hypervisor.exec(["qemu-img", "info", "--force-share", "--output=json", self.file]))
 
     def delete(self):
         self.hypervisor.remove_file(self.file)
@@ -28,10 +28,9 @@ class Images:
         if not self.hypervisor.is_dir(self.directory):
             return []
         images = []
-        for root, dirs, files in self.hypervisor.walk(self.directory):
-            for file in files:
-                name = os.path.relpath(os.path.join(root, file), start=self.directory)
-                images.append(Image(self.hypervisor, name))
+        for file in self.hypervisor.walk(self.directory):
+            name = os.path.relpath(file, start=self.directory)
+            images.append(Image(self.hypervisor, name))
         return images
 
     def get(self, name):

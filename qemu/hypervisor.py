@@ -2,6 +2,7 @@ import os
 import shutil
 import subprocess
 
+from .qmp import Qmp
 from .images import Images
 from .networks import Networks
 from .vms import Vms
@@ -24,20 +25,20 @@ class Hypervisor:
             },
         }
 
-    def exec(self, command, text=True, capture_output=True, check=True, cwd=None):
-        return subprocess.run(command, text=text, capture_output=capture_output, check=check, cwd=cwd)
+    def exec(self, command, check=True, cwd=None):
+        return subprocess.run(command, text=True, capture_output=True, check=check, cwd=cwd).stdout
 
     def pid_kill(self, pidfile, name=None):
         args = ["pkill", "--pidfile", pidfile]
         if name:
             args += [name]
-        return self.exec(args, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode == 0
+        return subprocess.run(args, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode == 0
 
     def pid_exists(self, pidfile, name=None):
         args = ["pgrep", "--pidfile", pidfile]
         if name:
             args += [name]
-        return self.exec(args, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode == 0
+        return subprocess.run(args, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode == 0
 
     def open_file(self, filename, *args):
         return open(filename, *args)
@@ -64,4 +65,11 @@ class Hypervisor:
         return shutil.rmtree(directory)
 
     def walk(self, directory):
-        return os.walk(directory)
+        files = []
+        for root, dirs, files in os.walk(self.directory):
+            for file in files:
+                files.append(os.path.join(root, file))
+        return files
+
+    def qmp(self, filename):
+        return Qmp(filename)

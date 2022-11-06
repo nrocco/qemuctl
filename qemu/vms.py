@@ -1,7 +1,6 @@
 import json
 import os
 
-from .qmp import Qmp
 from .specs import VmSpec
 
 
@@ -62,12 +61,12 @@ class Vm:
         drives = []
         for drive in self.spec["drives"]:
             result = self.hypervisor.exec(["qemu-img", "info", "--force-share", "--output=json", drive["file"]], cwd=self.directory)
-            drives.append(json.loads(result.stdout))
+            drives.append(json.loads(result))
         return drives
 
     @property
     def monitor(self):
-        return Qmp(os.path.join(self.directory, "qmp.sock"))
+        return self.hypervisor.qmp(os.path.join(self.directory, "qmp.sock"))
 
     @property
     def is_running(self):

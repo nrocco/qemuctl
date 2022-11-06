@@ -32,27 +32,27 @@ class Network:
 
     @property
     def bridge(self):
-        return json.loads(self.hypervisor.exec(["ip", "-j", "link", "show", "dev", self.name]).stdout)[0]
+        return json.loads(self.hypervisor.exec(["ip", "-j", "link", "show", "dev", self.name]))[0]
 
     @property
     def routes(self):
-        return json.loads(self.hypervisor.exec(["ip", "-j", "route", "show", "dev", self.name]).stdout)
+        return json.loads(self.hypervisor.exec(["ip", "-j", "route", "show", "dev", self.name]))
 
     @property
     def arp(self):
-        return json.loads(self.hypervisor.exec(["ip", "-j", "neigh", "show", "dev", self.name]).stdout)
+        return json.loads(self.hypervisor.exec(["ip", "-j", "neigh", "show", "dev", self.name]))
 
     @property
     def address(self):
-        return json.loads(self.hypervisor.exec(["ip", "-j", "addr", "show", "dev", self.name], check=False).stdout)
+        return json.loads(self.hypervisor.exec(["ip", "-j", "addr", "show", "dev", self.name], check=False))
 
     @property
     def link(self):
-        return json.loads(self.hypervisor.exec(["ip", "-j", "link", "show", "master", self.name, "type", "bridge_slave"]).stdout)
+        return json.loads(self.hypervisor.exec(["ip", "-j", "link", "show", "master", self.name, "type", "bridge_slave"]))
 
     @property
     def stats(self):
-        return json.loads(self.hypervisor.exec(["ifstat", "-j", self.name]).stdout)
+        return json.loads(self.hypervisor.exec(["ifstat", "-j", self.name]))
 
     @property
     def leases(self):
