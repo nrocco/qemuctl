@@ -1,4 +1,5 @@
 import os
+import shutil
 import subprocess
 
 from .images import Images
@@ -18,8 +19,8 @@ class Hypervisor:
                 'password': vnc_password,
             },
             'uefi': {
-                'code': '/usr/share/OVMF/OVMF_CODE.fd', # TODO this is hard coded
-                'vars': '/usr/share/OVMF/OVMF_VARS.fd', # TODO this is hard coded
+                'code': '/usr/share/OVMF/OVMF_CODE.fd',  # TODO this is hard coded
+                'vars': '/usr/share/OVMF/OVMF_VARS.fd',  # TODO this is hard coded
             },
         }
 
@@ -37,3 +38,27 @@ class Hypervisor:
         if name:
             args += [name]
         return subprocess.run(args, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode == 0
+
+    def symlink(self, source, destination):
+        return os.link(source, destination)
+
+    def list_dir(self, directory):
+        return os.listdir(directory)
+
+    def make_dir(self, directory):
+        return os.makedirs(directory)
+
+    def is_file(self, filename):
+        return os.path.isfile(filename)
+
+    def is_dir(self, directory):
+        return os.path.isdir(directory)
+
+    def remove_file(self, filename):
+        return os.remove(filename)
+
+    def remove_dir(self, directory):
+        return shutil.rmtree(directory)
+
+    def walk(self, directory):
+        return os.walk(directory)

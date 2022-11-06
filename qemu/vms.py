@@ -1,6 +1,5 @@
 import json
 import os
-import shutil
 
 from .qmp import Qmp
 from .specs import VmSpec
@@ -10,16 +9,16 @@ class Vm:
     @staticmethod
     def create_from_spec(hypervisor, spec):
         vm = Vm(hypervisor, spec["name"])
-        os.makedirs(vm.directory)
+        vm.hypervisor.make_dir(vm.directory)
         spec.update({
             "chroot": vm.directory,
             "pidfile": "pidfile",
             "runas": "qemu",
             "qmp": "unix:qmp.sock,server=yes,wait=no",
             "vnc": {
-                "vnc": hypervisor.config["vnc"]["address"],
+                "vnc": vm.hypervisor.config["vnc"]["address"],
                 "to": "100",
-                "password": hypervisor.config["vnc"]["password"],
+                "password": vm.hypervisor.config["vnc"]["password"],
             },
         })
         with open(os.path.join(vm.directory, "spec.json"), "w") as file:
@@ -32,16 +31,16 @@ class Vm:
                 vm.hypervisor.exec(["install", "--no-target-directory", "--owner=qemu", "--group=kvm", "--mode=775", vm.hypervisor.config['uefi']['vars'], drive["file"]], cwd=vm.directory)
                 continue
             if "backing_file" in drive:
-                src = hypervisor.images.get(drive["backing_file"]).file
+                src = vm.hypervisor.images.get(drive["backing_file"]).file
                 dst = os.path.join(vm.directory, drive["backing_file"])
-                os.makedirs(os.path.dirname(dst))
-                os.link(src, dst)
+                vm.hypervisor.make_dir(os.path.dirname(dst))
+                vm.hypervisor.symlink(src, dst)
             vm.hypervisor.exec(drive.to_qemu_img_args(), cwd=vm.directory)
         if "cdrom" in spec and spec["cdrom"]:
-            src = hypervisor.images.get(spec["cdrom"]).file
+            src = vm.hypervisor.images.get(spec["cdrom"]).file
             dst = os.path.join(vm.directory, spec["cdrom"])
-            os.makedirs(os.path.dirname(dst)) # TODO this assumes isos are stored in images/subfolder!
-            os.link(src, dst)
+            vm.hypervisor.make_dir(os.path.dirname(dst))  # TODO this assumes isos are stored in images/subfolder!
+            vm.hypervisor.symlink(src, dst)
         return vm
 
     def __init__(self, hypervisor, name):
@@ -73,7 +72,7 @@ class Vm:
     @property
     def is_running(self):
         pidfile = os.path.join(self.directory, "pidfile")
-        if not os.path.isfile(pidfile):
+        if not self.hypervisor.is_file(pidfile):
             return False
         return self.hypervisor.pid_exists(pidfile, "qemu")
 
@@ -98,7 +97,7 @@ class Vm:
 
     def destroy(self):
         self.hypervisor.pid_kill(os.path.join(self.directory, "pidfile"), "qemu")
-        shutil.rmtree(self.directory)
+        self.hypervisor.remove_dir(self.directory)
 
 
 class Vms:
@@ -107,12 +106,12 @@ class Vms:
         self.directory = os.path.join(hypervisor.directory, "vms")
 
     def __contains__(self, value):
-        return os.path.isdir(os.path.join(self.directory, value))
+        return self.hypervisor.is_dir(os.path.join(self.directory, value))
 
     def all(self):
-        if not os.path.isdir(self.directory):
+        if not self.hypervisor.is_dir(self.directory):
             return []
-        return [Vm(self.hypervisor, name) for name in os.listdir(self.directory)]
+        return [Vm(self.hypervisor, name) for name in self.hypervisor.list_dir(self.directory)]
 
     def get(self, name):
         if name not in self:

@@ -16,7 +16,7 @@ class Image:
         return json.loads(self.hypervisor.exec(["qemu-img", "info", "--force-share", "--output=json", self.file]).stdout)
 
     def delete(self):
-        os.remove(self.file)
+        self.hypervisor.remove_file(self.file)
 
 
 class Images:
@@ -25,17 +25,17 @@ class Images:
         self.directory = os.path.join(hypervisor.directory, "images")
 
     def all(self):
-        if not os.path.isdir(self.directory):
+        if not self.hypervisor.is_dir(self.directory):
             return []
         images = []
-        for root, dirs, files in os.walk(self.directory):
+        for root, dirs, files in self.hypervisor.walk(self.directory):
             for file in files:
                 name = os.path.relpath(os.path.join(root, file), start=self.directory)
                 images.append(Image(self.hypervisor, name))
         return images
 
     def get(self, name):
-        if not os.path.isfile(os.path.join(self.directory, name)):
+        if not self.hypervisor.is_file(os.path.join(self.directory, name)):
             raise Exception(f"Image {name} does not exist")
         return Image(self.hypervisor, name)
 

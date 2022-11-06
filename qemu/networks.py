@@ -10,7 +10,7 @@ class Network:
     @staticmethod
     def create_from_spec(hypervisor, spec):
         network = Network(hypervisor, spec["name"])
-        os.makedirs(network.directory)
+        network.hypervisor.make_dir(network.directory)
         with open(os.path.join(network.directory, "spec.json"), "w") as file:
             json.dump(spec, file)
         if spec["ip_range"] and spec["dhcp"]:
@@ -59,7 +59,7 @@ class Network:
     @property
     def leases(self):
         leases_file = os.path.join(self.directory, "leases")
-        if not os.path.isfile(leases_file):
+        if not self.hypervisor.is_file(leases_file):
             return []
         with open(leases_file, "r") as file:
             raw_leases = file.readlines()
@@ -114,12 +114,12 @@ class Networks:
         self.directory = os.path.join(hypervisor.directory, "networks")
 
     def __contains__(self, value):
-        return os.path.isdir(os.path.join(self.directory, value))
+        return self.hypervisor.is_dir(os.path.join(self.directory, value))
 
     def all(self):
-        if not os.path.isdir(self.directory):
+        if not self.hypervisor.is_dir(self.directory):
             return []
-        return [Network(self.hypervisor, name) for name in os.listdir(self.directory)]
+        return [Network(self.hypervisor, name) for name in self.hypervisor.list_dir(self.directory)]
 
     def get(self, name):
         if name not in self:
