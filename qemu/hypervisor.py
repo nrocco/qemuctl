@@ -31,13 +31,13 @@ class Hypervisor:
         args = ["pkill", "--pidfile", pidfile]
         if name:
             args += [name]
-        return subprocess.run(args, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode == 0
+        return self.exec(args, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode == 0
 
     def pid_exists(self, pidfile, name=None):
         args = ["pgrep", "--pidfile", pidfile]
         if name:
             args += [name]
-        return subprocess.run(args, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode == 0
+        return self.exec(args, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode == 0
 
     def open_file(self, filename, *args):
         return open(filename, *args)
