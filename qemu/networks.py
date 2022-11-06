@@ -11,10 +11,10 @@ class Network:
     def create_from_spec(hypervisor, spec):
         network = Network(hypervisor, spec["name"])
         network.hypervisor.make_dir(network.directory)
-        with open(os.path.join(network.directory, "spec.json"), "w") as file:
+        with network.hypervisor.open_file(os.path.join(network.directory, "spec.json"), "w") as file:
             json.dump(spec, file)
         if spec["ip_range"] and spec["dhcp"]:
-            with open(os.path.join(network.directory, "dnsmasq.conf"), "w") as file:
+            with network.hypervisor.open_file(os.path.join(network.directory, "dnsmasq.conf"), "w") as file:
                 file.write(generate_dnsmasq_config(spec))
         return network
 
@@ -28,7 +28,7 @@ class Network:
 
     @property
     def spec(self):
-        with open(os.path.join(self.directory, "spec.json"), "r") as file:
+        with self.hypervisor.open_file(os.path.join(self.directory, "spec.json"), "r") as file:
             data = json.load(file)
         return NetworkSpec(data)
 
@@ -61,7 +61,7 @@ class Network:
         leases_file = os.path.join(self.directory, "leases")
         if not self.hypervisor.is_file(leases_file):
             return []
-        with open(leases_file, "r") as file:
+        with self.hypervisor.open_file(leases_file, "r") as file:
             raw_leases = file.readlines()
         leases = []
         for lease in raw_leases:

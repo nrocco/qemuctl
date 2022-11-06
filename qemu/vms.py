@@ -21,7 +21,7 @@ class Vm:
                 "password": vm.hypervisor.config["vnc"]["password"],
             },
         })
-        with open(os.path.join(vm.directory, "spec.json"), "w") as file:
+        with vm.hypervisor.open_file(os.path.join(vm.directory, "spec.json"), "w") as file:
             json.dump(spec, file)
         for drive in spec["drives"]:
             if "OVMF_CODE.fd" in drive["file"]:
@@ -53,7 +53,7 @@ class Vm:
 
     @property
     def spec(self):
-        with open(os.path.join(self.directory, "spec.json"), "r") as file:
+        with self.hypervisor.open_file(os.path.join(self.directory, "spec.json"), "r") as file:
             data = json.load(file)
         return VmSpec(data)
 

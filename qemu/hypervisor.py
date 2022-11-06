@@ -39,6 +39,9 @@ class Hypervisor:
             args += [name]
         return subprocess.run(args, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode == 0
 
+    def open_file(self, filename, *args):
+        return open(filename, *args)
+
     def symlink(self, source, destination):
         return os.link(source, destination)
 
