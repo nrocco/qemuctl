@@ -84,7 +84,7 @@ class Network:
         if not bridge_address:
             self.hypervisor.exec(["ip", "link", "add", spec["name"], "type", "bridge", "stp_state", "1"])
             self.hypervisor.exec(["ip", "link", "set", spec["name"], "up"])
-        elif 'UP' not in bridge_address['flags']:
+        elif 'UP' not in bridge_address[0]['flags']:
             self.hypervisor.exec(["ip", "link", "set", spec["name"], "up"])
         if spec["ip_range"]:
             # TODO check if the ip already exists on the bridge

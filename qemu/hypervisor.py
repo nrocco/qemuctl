@@ -7,15 +7,19 @@ from .vms import Vms
 
 
 class Hypervisor:
-    def __init__(self, directory):
+    def __init__(self, directory="", vnc_address="127.0.0.1", vnc_password=None):
         self.directory = os.path.abspath(directory)
         self.vms = Vms(self)
         self.images = Images(self)
         self.networks = Networks(self)
         self.config = {
             'vnc': {
-                'address': os.environ.get("QEMUCTL_VNC_ADDRESS", "127.0.0.1"),
-                'password': os.environ.get("QEMUCTL_VNC_PASSWORD", None),
+                'address': vnc_address,
+                'password': vnc_password,
+            },
+            'uefi': {
+                'code': '/usr/share/OVMF/OVMF_CODE.fd', # TODO this is hard coded
+                'vars': '/usr/share/OVMF/OVMF_VARS.fd', # TODO this is hard coded
             },
         }
 

@@ -40,4 +40,10 @@ class Images:
         return Image(self.hypervisor, name)
 
     def create(self, spec):  # TODO: add download functionality here
+        """
+        get json https://app.vagrantup.com/generic/boxes/rocky9
+        find most recent version number
+        check if we have the version already
+        wget -O- https://app.vagrantup.com/generic/boxes/rocky9/versions/4.1.20/providers/libvirt.box | tar xf - box.img
+        """
         pass

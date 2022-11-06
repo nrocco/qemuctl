@@ -12,7 +12,7 @@ clean:
 	find $(MODULE) tests -name '*~' -exec rm -f {} +
 	find $(MODULE) tests -name '._*' -exec rm -f {} +
 	find $(MODULE) tests -name '.coverage*' -exec rm -f {} +
-	rm -rf .tox *.egg dist build .coverage MANIFEST || true
+	rm -rf .tox *.egg *.egg-info build .coverage MANIFEST htmlcov || true
 
 
 .PHONY: lint

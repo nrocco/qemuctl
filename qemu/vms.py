@@ -26,10 +26,10 @@ class Vm:
             json.dump(spec, file)
         for drive in spec["drives"]:
             if "OVMF_CODE.fd" in drive["file"]:
-                vm.hypervisor.exec(["install", "--no-target-directory", "--owner=qemu", "--group=kvm", "--mode=775", "/usr/share/OVMF/OVMF_CODE.fd", drive["file"]], cwd=vm.directory)
+                vm.hypervisor.exec(["install", "--no-target-directory", "--owner=qemu", "--group=kvm", "--mode=775", vm.hypervisor.config['uefi']['code'], drive["file"]], cwd=vm.directory)
                 continue
             if "OVMF_VARS.fd" in drive["file"]:
-                vm.hypervisor.exec(["install", "--no-target-directory", "--owner=qemu", "--group=kvm", "--mode=775", "/usr/share/OVMF/OVMF_VARS.fd", drive["file"]], cwd=vm.directory)
+                vm.hypervisor.exec(["install", "--no-target-directory", "--owner=qemu", "--group=kvm", "--mode=775", vm.hypervisor.config['uefi']['vars'], drive["file"]], cwd=vm.directory)
                 continue
             if "backing_file" in drive:
                 src = hypervisor.images.get(drive["backing_file"]).file
@@ -40,7 +40,7 @@ class Vm:
         if "cdrom" in spec and spec["cdrom"]:
             src = hypervisor.images.get(spec["cdrom"]).file
             dst = os.path.join(vm.directory, spec["cdrom"])
-            os.makedirs(os.path.dirname(dst))
+            os.makedirs(os.path.dirname(dst)) # TODO this assumes isos are stored in images/subfolder!
             os.link(src, dst)
         return vm
 

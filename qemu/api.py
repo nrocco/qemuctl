@@ -1,3 +1,5 @@
+import os
+
 from flask import Flask, request, jsonify
 from functools import wraps
 
@@ -7,8 +9,7 @@ from .specs import VmSpec
 
 
 app = Flask(__name__)
-
-hypervisor = Hypervisor("")
+hypervisor = Hypervisor("", vnc_address=os.environ.get("QEMUCTL_VNC_ADDRESS", "127.0.0.1"), vnc_password=os.environ.get("QEMUCTL_VNC_PASSWORD"))
 
 
 def pass_vm(f):
