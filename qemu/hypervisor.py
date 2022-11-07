@@ -72,4 +72,4 @@ class Hypervisor:
         return files
 
     def qmp(self, filename):
-        return Qmp(filename)
+        return Qmp.from_local_socket(filename)

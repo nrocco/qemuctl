@@ -108,11 +108,11 @@ def vms_show(hypervisor, name):
             print(f"  - {nic}")
 
 
-@vms.command("display")
+@vms.command("console")
 @click.argument("name")
 @pass_hypervisor
 @click.pass_context
-def vms_display(ctx, hypervisor, name):
+def vms_console(ctx, hypervisor, name):
     """
     Open the console with vnc
     """
@@ -213,9 +213,16 @@ def vms_create(ctx, hypervisor, console, dry_run, **spec):
     if dry_run:
         print(json.dumps(spec, indent=2))
         ctx.exit(0)
-    vm = hypervisor.vms.create(spec).start()
-    print(f"Vm {vm['name']} created")
-    # TODO optionally open the vnc console
+    vm = hypervisor.vms.create(spec)
+    vm.start()
+    print(f"Vm {vm.name} created")
+    with vm.monitor as monitor:
+        vnc_data = monitor.execute("query-vnc")
+    vnc_uri = f"vnc://:{vm.spec['vnc']['password']}@{vnc_data['host']}:{vnc_data['service']}"
+    if ctx.find_root().params["vnc_command"]:
+        subprocess.run(ctx.find_root().params["vnc_command"].format(vnc_uri), shell=True)
+    else:
+        print(vnc_uri)
 
 
 @vms.command("start")
@@ -401,8 +408,9 @@ def networks_create(hypervisor, **spec):
     Create a network.
     """
     spec = NetworkSpec(spec)
-    hypervisor.networks.create(spec).start()
-    print(f"Network {spec['name']} created")
+    network = hypervisor.networks.create(spec)
+    network.start()
+    print(f"Network {network.name} created")
 
 
 @networks.command("destroy")

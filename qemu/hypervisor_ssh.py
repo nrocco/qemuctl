@@ -6,7 +6,7 @@ from stat import S_ISDIR
 from stat import S_ISREG
 from urllib.parse import urlparse
 
-from .qmp_ssh import QmpSSH
+from .qmp import Qmp
 from .hypervisor import Hypervisor
 
 
@@ -96,4 +96,4 @@ class HypervisorSSH(Hypervisor):
     def qmp(self, filename):
         channel = self.client.get_transport().open_session()
         channel.exec_command(f"socat - UNIX-CONNECT:{filename}")
-        return QmpSSH(channel)
+        return Qmp.from_ssh_channel(channel)
