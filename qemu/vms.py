@@ -75,6 +75,16 @@ class Vm:
             return False
         return self.hypervisor.pid_exists(pidfile, "qemu")
 
+    @property
+    def address(self):  # TODO: this returns only the first IP
+        for nic in self.spec["nics"]:
+            if "br" not in nic:
+                continue
+            for lease in self.hypervisor.networks.get(nic["br"]).leases:
+                if lease["mac"] == nic["mac"]:
+                    return lease['ip']
+        return None
+
     def start(self):
         spec = self.spec
         self.hypervisor.exec(spec.to_qemu_args(), cwd=self.directory)

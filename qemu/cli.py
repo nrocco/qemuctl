@@ -5,21 +5,10 @@ import math
 import os
 import subprocess
 
-from qemu import __version__
-from requests import Session
-
-
-class Hypervisor(Session):
-    def __init__(self, base_url):
-        self.base_url = base_url
-        super().__init__()
-
-    def request(self, method, url, data=None, headers={}, **kwargs):
-        if not url.startswith("http"):
-            url = f"{self.base_url}/{url.lstrip('/')}"
-        response = super().request(method, url, headers=headers, data=data, **kwargs)
-        logging.debug(response.text)
-        return response
+from . import __version__
+from .hypervisor_ssh import HypervisorSSH
+from .specs import NetworkSpec
+from .specs import VmSpec
 
 
 def read_config(ctx, param, value):
@@ -46,22 +35,24 @@ def sizeof_fmt(num, suffix='B'):
     return '{:3.1f}{}{}'.format(val, ['', 'Ki', 'Mi', 'Gi', 'Ti', 'Pi', 'Ei', 'Zi'][magnitude], suffix)
 
 
-pass_hypervisor = click.make_pass_decorator(Hypervisor)
+pass_hypervisor = click.make_pass_decorator(HypervisorSSH)
 
 
 @click.group(context_settings=dict(auto_envvar_prefix="QEMU", show_default=True))
 @click.option("--config", help="Location to a config file", is_eager=True, callback=read_config)
 @click.option("--hypervisor", help="Hypervisor endpoint")
 @click.option("--vnc-command", help="The vnc program to execute")
+@click.option("--vnc-address", help="The vnc program to execute")
+@click.option("--vnc-password", help="The vnc program to execute")
 @click.option("-v", "--verbose", count=True, help="Verbose logging, repeat to increase verbosity")
 @click.version_option(version=__version__)
 @click.pass_context
-def cli(ctx, verbose, config, vnc_command, hypervisor):
+def cli(ctx, verbose, config, vnc_command, vnc_address, vnc_password, hypervisor):
     """
     Manage virtual machines using qemu.
     """
     logging.basicConfig(level=max(30 - verbose * 10, 10), format="[%(asctime)-15s] [%(levelname)s] %(message)s")
-    ctx.obj = Hypervisor(base_url=hypervisor)
+    ctx.obj = HypervisorSSH(hypervisor, vnc_address=vnc_address, vnc_password=vnc_password)
 
 
 @cli.group()
@@ -79,11 +70,11 @@ def vms_list(hypervisor, details):
     """
     List virtual machines.
     """
-    for vm in hypervisor.get("/vms").json():
+    for vm in hypervisor.vms.all():
         print("\t".join([
-            vm["name"].ljust(30),
-            vm["status"].rjust(8),
-            vm["spec"]["memory"]["size"].rjust(8),
+            vm.name.ljust(30),
+            ("running" if vm.is_running else "stopped").rjust(8),
+            vm.spec["memory"]["size"].rjust(8),
         ]))
 
 
@@ -94,23 +85,27 @@ def vms_show(hypervisor, name):
     """
     Show information about a virtual machine.
     """
-    vm = hypervisor.get(f"/vms/{name}").json()
-    print(f"Status: {vm['status']}")
-    if vm["vnc"]:
-        print(f"Display: {vm['vnc']}")
-    print(f"Memory: {vm['spec']['memory']}")
-    print(f"Cpu: {vm['spec']['smp']}")
-    if vm["spec"]["drives"]:
+    vm = hypervisor.vms.get(name)
+    spec = vm.spec
+    print(f"Name: {name}")
+    print(f"Memory: {spec['memory']['size']}")
+    print(f"Cpu: {spec['smp']['cores']}")
+    if vm.is_running:
+        print("Status: running")
+        with vm.monitor as monitor:
+            vnc_data = monitor.execute("query-vnc")
+        print(f"Display: vnc://:{spec['vnc']['password']}@{vnc_data['host']}:{vnc_data['service']}")
+    else:
+        print("Status: stopped")
+    print(f"Ip: {vm.address}")
+    if spec["drives"]:
         print("Drives:")
-        for drive in vm["spec"]["drives"]:
+        for drive in spec["drives"]:
             print(f"  - {drive}")
-    if vm["spec"]["nics"]:
+    if spec["nics"]:
         print("Nics:")
-        for nic in vm["spec"]["nics"]:
+        for nic in spec["nics"]:
             print(f"  - {nic}")
-    for ip in vm["ips"]:
-        print(f"Ip: {ip['ip']}")
-    print(f"State: {vm['state']}")
 
 
 @vms.command("display")
@@ -121,14 +116,17 @@ def vms_display(ctx, hypervisor, name):
     """
     Open the console with vnc
     """
-    vm = hypervisor.get(f"/vms/{name}").json()
-    if not vm["vnc"]:
+    vm = hypervisor.vms.get(name)
+    if not vm.is_running:
         print(f"Vm {name} is not running")
         ctx.exit(1)
+    with vm.monitor as monitor:
+        vnc_data = monitor.execute("query-vnc")
+    vnc_uri = f"vnc://:{vm.spec['vnc']['password']}@{vnc_data['host']}:{vnc_data['service']}"
     if ctx.find_root().params["vnc_command"]:
-        subprocess.run(ctx.find_root().params["vnc_command"].format(vm["vnc"]), shell=True)
+        subprocess.run(ctx.find_root().params["vnc_command"].format(vnc_uri), shell=True)
     else:
-        print(vm["vnc"])
+        print(vnc_uri)
 
 
 @vms.command("ssh")
@@ -139,14 +137,15 @@ def vms_ssh(ctx, hypervisor, name):
     """
     Setup an ssh session to the vm
     """
-    vm = hypervisor.get(f"/vms/{name}").json()
-    if not vm["vnc"]:
+    vm = hypervisor.vms.get(name)
+    if not vm.is_running:
         print(f"Vm {name} is not running")
         ctx.exit(1)
-    if not vm["ips"]:
+    ip = vm.address
+    if not ip:
         print(f"Vm {name} does not have an ip")
         ctx.exit(1)
-    subprocess.run(f"ssh {vm['ips'][0]['ip']}", shell=True)
+    subprocess.run(f"ssh {ip}", shell=True)
 
 
 @vms.command("create")
@@ -210,13 +209,13 @@ def vms_create(ctx, hypervisor, console, dry_run, **spec):
     \b
         --cdrom isos/Fedora-Server-netinst-x86_64-33-1.2.iso
     """
+    spec = VmSpec(spec)
     if dry_run:
         print(json.dumps(spec, indent=2))
-        return
-    vm = hypervisor.post("/vms", json=spec).json()
-    print(f"Vm {vm['name']} created: {vm['vnc']}")
-    if console and ctx.find_root().params["vnc_command"]:
-        subprocess.run(ctx.find_root().params["vnc_command"].format(vm["vnc"]), shell=True)
+        ctx.exit(0)
+    vm = hypervisor.vms.create(spec).start()
+    print(f"Vm {vm['name']} created")
+    # TODO optionally open the vnc console
 
 
 @vms.command("start")
@@ -227,10 +226,10 @@ def vms_start(ctx, hypervisor, name):
     """
     Start a virtual machine.
     """
-    vm = hypervisor.post(f"/vms/{name}/start").json()
-    print(f"Vm {name} started: {vm['vnc']}")
-    if ctx.find_root().params["vnc_command"]:
-        subprocess.run(ctx.find_root().params["vnc_command"].format(vm["vnc"]), shell=True)
+    vm = hypervisor.vms.get(name)
+    vm.start()
+    print(f"Vm {name} started")
+    # TODO optionally open the vnc console
 
 
 @vms.command("restart")
@@ -240,8 +239,10 @@ def vms_restart(hypervisor, name):
     """
     Restart a virtual machine.
     """
-    vm = hypervisor.post(f"/vms/{name}/restart").json()
-    print(f"Vm {name} restarted: {vm['vnc']}")
+    vm = hypervisor.vms.get(name)
+    vm.restart()
+    print(f"Vm {name} restarted")
+    # TODO optionally open the vnc console
 
 
 @vms.command("stop")
@@ -252,7 +253,8 @@ def vms_stop(hypervisor, name, force):
     """
     Stop a virtual machine.
     """
-    hypervisor.post(f"/vms/{name}/stop")
+    vm = hypervisor.vms.get(name)
+    vm.stop()
     print(f"Vm {name} stopped")
 
 
@@ -287,11 +289,10 @@ def vms_monitor(hypervisor, name, command, arguments):
         qemuctl vms monitor <name> qom-list 'path=/machine/peripheral-anon/device[0]'
         qemuctl vms monitor <name> qom-get 'path=/machine/peripheral-anon/device[0]' property=mac
     """
-    data = {
-        'command': command,
-        'arguments': {key: value for key, value in [arg.split("=") for arg in arguments]},
-    }
-    result = hypervisor.post(f"/vms/{name}/monitor", json=data).json()
+    arguments = {key: value for key, value in [arg.split("=") for arg in arguments]}
+    vm = hypervisor.vms.get(name)
+    with vm.monitor as monitor:
+        result = monitor.execute(command, **arguments)
     print(json.dumps(result, indent=2))
 
 
@@ -302,7 +303,8 @@ def vms_destroy(hypervisor, name):
     """
     Destroy a virtual machine.
     """
-    hypervisor.delete(f"/vms/{name}")
+    vm = hypervisor.vms.get(name)
+    vm.destroy()
     print(f"Vm {name} destroyed")
 
 
@@ -321,11 +323,11 @@ def images_list(hypervisor, details):
     """
     List all available images.
     """
-    for image in hypervisor.get("/images").json():
+    for image in hypervisor.images.all():
         print("\t".join([
-            image["name"].ljust(40),
-            sizeof_fmt(image["spec"]["actual-size"]).rjust(8),
-            sizeof_fmt(image["spec"]["virtual-size"]).rjust(8),
+            image.name.ljust(40),
+            sizeof_fmt(image.spec["actual-size"]).rjust(8),
+            sizeof_fmt(image.spec["virtual-size"]).rjust(8),
         ]))
 
 
@@ -336,8 +338,8 @@ def images_show(hypervisor, name):
     """
     Show information about an image.
     """
-    image = hypervisor.get(f"/images/{name}").json()
-    print(json.dumps(image, indent=2))
+    image = hypervisor.images.get(name)
+    print(json.dumps(image.spec, indent=2))
 
 
 @images.command("delete")
@@ -347,7 +349,8 @@ def images_delete(hypervisor, name):
     """
     Delete an image.
     """
-    hypervisor.delete(f"/images/{name}")
+    image = hypervisor.images.get(name)
+    image.delete()
     print(f"Image {name} deleted")
 
 
@@ -366,8 +369,8 @@ def networks_list(hypervisor, details):
     """
     List all available networks.
     """
-    for network in hypervisor.get("/networks").json():
-        print(network["name"])
+    for network in hypervisor.networks.all():
+        print(network.name)
 
 
 @networks.command("show")
@@ -377,15 +380,15 @@ def networks_show(hypervisor, name):
     """
     Show detailed information for a network.
     """
-    network = hypervisor.get(f"/networks/{name}").json()
-    print(f"Name: {name}")
-    print("Ip: " + ", ".join([addr['local'] for addr in network['address'][0]['addr_info']]))
+    network = hypervisor.networks.get(name)
+    print(f"Name: {network.name}")
+    print("Ip: " + ", ".join([addr['local'] for addr in network.address[0]['addr_info']]))
     print("Leases:")
-    for lease in network['leases']:
+    for lease in network.leases:
         print(f"  {lease['mac']} => {lease['ip']}")
     print("Stats:")
-    print(f"  Received: {sizeof_fmt(network['stats']['kernel'][name]['rx_bytes'])}")
-    print(f"  Sent: {sizeof_fmt(network['stats']['kernel'][name]['tx_bytes'])}")
+    print(f"  Received: {sizeof_fmt(network.stats['kernel'][name]['rx_bytes'])}")
+    print(f"  Sent: {sizeof_fmt(network.stats['kernel'][name]['tx_bytes'])}")
 
 
 @networks.command("create")
@@ -397,7 +400,8 @@ def networks_create(hypervisor, **spec):
     """
     Create a network.
     """
-    hypervisor.post("/networks", json=spec)
+    spec = NetworkSpec(spec)
+    hypervisor.networks.create(spec).start()
     print(f"Network {spec['name']} created")
 
 
@@ -408,5 +412,6 @@ def networks_destroy(hypervisor, name):
     """
     Destroy a network.
     """
-    hypervisor.delete(f"/networks/{name}")
+    network = hypervisor.networks.get(name)
+    network.destroy()
     print(f"Network {name} destroyed")
