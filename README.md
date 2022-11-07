@@ -10,6 +10,7 @@ dependencies
 - qemu
 - iproute
 - dnsmasq
+- socat
 
 
 setup
@@ -44,12 +45,12 @@ Use `qemuctl --help` to get help:
       --config TEXT       Location to a config file
       --hypervisor TEXT   Hypervisor endpoint
       --vnc-command TEXT  The vnc program to execute
-      -v, --verbose       Verbose logging, repeat to increase verbosity  [default:
-                          0]
+      -v, --verbose       Verbose logging, repeat to increase verbosity  [default:0]
       --version           Show the version and exit.
       --help              Show this message and exit.
 
     Commands:
+      check     Check if the hypervisor meets the requirements.
       images    Manage images.
       networks  Manage networks.
       vms       Manage virtual machines.

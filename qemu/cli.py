@@ -55,6 +55,27 @@ def cli(ctx, verbose, config, vnc_command, vnc_address, vnc_password, hypervisor
     ctx.obj = HypervisorSSH(hypervisor, vnc_address=vnc_address, vnc_password=vnc_password)
 
 
+@cli.command("check")
+@pass_hypervisor
+def check(hypervisor):
+    """
+    Check if the hypervisor meets the requirements.
+    """
+    print("Check binaries:")
+    print(" - {}".format(hypervisor.exec(["type", "find"]).strip()))
+    print(" - {}".format(hypervisor.exec(["type", "install"]).strip()))
+    print(" - {}".format(hypervisor.exec(["type", "ifstat"]).strip()))
+    print(" - {}".format(hypervisor.exec(["type", "socat"]).strip()))
+    print(" - {}".format(hypervisor.exec(["type", "dnsmasq"]).strip()))
+    print(" - {}".format(hypervisor.exec(["type", "ip"]).strip()))
+    print(" - {}".format(hypervisor.exec(["type", "qemu-system-x86_64"]).strip()))
+    print(" - {}".format(hypervisor.exec(["type", "qemu-img"]).strip()))
+    print(" - {}".format(hypervisor.exec(["type", "iptables"]).strip()))
+    print("Check ip forwarding:")
+    print(" - {}".format(hypervisor.exec(["sysctl", "net.ipv4.ip_forward"]).strip()))
+
+
+
 @cli.group()
 def vms():
     """
