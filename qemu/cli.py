@@ -75,7 +75,6 @@ def check(hypervisor):
     print(" - {}".format(hypervisor.exec(["sysctl", "net.ipv4.ip_forward"]).strip()))
 
 
-
 @cli.group()
 def vms():
     """

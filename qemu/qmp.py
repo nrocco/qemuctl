@@ -11,7 +11,7 @@ class SocketConnection:
         self.socket = None
 
     def is_open(self):
-        return self.socket != None
+        return self.socket is not None
 
     def open(self):
         if not self.socket:
