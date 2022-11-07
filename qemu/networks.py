@@ -13,7 +13,7 @@ class Network:
             json.dump(spec, file)
         if spec["ip_range"] and spec["dhcp"]:
             with network.hypervisor.open_file(os.path.join(network.directory, "dnsmasq.conf"), "w") as file:
-                file.write(generate_dnsmasq_config(spec))
+                file.write(generate_dnsmasq_config(spec, network.directory))
         return network
 
     def __init__(self, hypervisor, name):
@@ -86,7 +86,7 @@ class Network:
             self.hypervisor.exec(["ip", "addr", "add", f"{spec.ip_range[1]}/{spec.ip_range.prefixlen}", "dev", spec["name"]])
         if spec["dhcp"]:
             # TODO check if dnsmasq is already running
-            self.hypervisor.exec(["dnsmasq", "--conf-file=dnsmasq.conf"], cwd=self.directory)
+            self.hypervisor.exec(["dnsmasq", f"--conf-file={self.directory}/dnsmasq.conf"], cwd=self.directory)
         return self
 
     def stop(self):
@@ -124,9 +124,9 @@ class Networks:
         return Network.create_from_spec(self.hypervisor, spec)
 
 
-def generate_dnsmasq_config(spec):
+def generate_dnsmasq_config(spec, directory):
     config = [
-        "pid-file=pidfile",
+        f"pid-file={directory}/pidfile",
         f"interface={spec['name']}",
         "except-interface=lo",
         "bind-interfaces",
@@ -137,7 +137,7 @@ def generate_dnsmasq_config(spec):
         config += [
             "log-dhcp",
             "log-queries",
-            "log-facility=./dnsmasq.log",
+            f"log-facility={directory}/dnsmasq.log",
         ]
     if spec['dns']:
         config += [
@@ -158,7 +158,7 @@ def generate_dnsmasq_config(spec):
             "dhcp-authoritative",
             f"dhcp-option=6,{spec['nameserver']}",
             f"dhcp-lease-max={spec.ip_range.num_addresses - 3}",
-            "dhcp-hostsfile=hostsfile",
-            "dhcp-leasefile=leases",
+            f"dhcp-hostsfile={directory}/hostsfile",
+            f"dhcp-leasefile={directory}/leases",
         ]
     return "\n".join(config)
