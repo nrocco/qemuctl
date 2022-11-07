@@ -44,7 +44,7 @@ class Network:
 
     @property
     def address(self):
-        return json.loads(self.hypervisor.exec(["ip", "-j", "addr", "show", "dev", self.name], check=False))
+        return json.loads(self.hypervisor.exec(["ip", "-j", "addr", "show", "dev", self.name], check=False) or "[]")
 
     @property
     def link(self):
