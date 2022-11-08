@@ -82,11 +82,11 @@ class Network:
         elif 'UP' not in bridge_address[0]['flags']:
             self.hypervisor.exec(["ip", "link", "set", spec["name"], "up"])
         if spec["ip_range"]:
-            # TODO check if the ip already exists on the bridge
-            self.hypervisor.exec(["ip", "addr", "add", f"{spec.ip_range[1]}/{spec.ip_range.prefixlen}", "dev", spec["name"]])
+            if 0 == len([addr for addr in self.address[0]['addr_info'] if addr['local'] == spec.ip_range[1]]):
+                self.hypervisor.exec(["ip", "addr", "add", f"{spec.ip_range[1]}/{spec.ip_range.prefixlen}", "dev", spec["name"]])
         if spec["dhcp"]:
-            # TODO check if dnsmasq is already running
-            self.hypervisor.exec(["dnsmasq", f"--conf-file={self.directory}/dnsmasq.conf"], cwd=self.directory)
+            if not self.hypervisor.pid_exists(os.path.join(self.directory, "pidfile"), "dnsmasq"):
+                self.hypervisor.exec(["dnsmasq", f"--conf-file={self.directory}/dnsmasq.conf"], cwd=self.directory)
         return self
 
     def stop(self):
