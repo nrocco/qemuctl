@@ -31,6 +31,13 @@ class Network:
         return NetworkSpec(data)
 
     @property
+    def is_running(self):
+        pidfile = os.path.join(self.directory, "pidfile")
+        if not self.hypervisor.is_file(pidfile):
+            return False
+        return self.hypervisor.pid_exists(pidfile, "dnsmasq")
+
+    @property
     def bridge(self):
         return json.loads(self.hypervisor.exec(["ip", "-j", "link", "show", "dev", self.name]))[0]
 

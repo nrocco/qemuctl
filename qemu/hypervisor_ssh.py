@@ -1,3 +1,4 @@
+import logging
 import os
 import paramiko
 import shlex
@@ -22,6 +23,7 @@ class HypervisorSSH(Hypervisor):
     @property
     def client(self):
         if not self._client:
+            logging.info(f"Connecting to {self._host.hostname}")
             self._client = paramiko.SSHClient()
             self._client.load_system_host_keys()
             self._client.connect(self._host.hostname, username=self._host.username, password=self._host.password)
@@ -34,6 +36,7 @@ class HypervisorSSH(Hypervisor):
         return self._sftp
 
     def exec(self, command, check=True, cwd=None):
+        logging.debug("==> " + ' '.join(command))
         cwd = cwd or self.directory
         stdin, stdout, stderr = self.client.exec_command(f"cd {cwd}; " + shlex.join(command))
         resultcode = stdout.channel.recv_exit_status()

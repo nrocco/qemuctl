@@ -85,9 +85,21 @@ class Vm:
                     return lease['ip']
         return None
 
+    @property
+    def vnc_uri(self):
+        with self.monitor as monitor:
+            vnc_data = monitor.execute("query-vnc")
+        return f"vnc://:{self.spec['vnc']['password']}@{vnc_data['host']}:{vnc_data['service']}"
+
     def start(self):
         spec = self.spec
-        self.hypervisor.exec(spec.to_qemu_args(), cwd=self.directory)
+        for nic in spec["nics"]:
+            if "br" not in nic:
+                continue
+            network = self.hypervisor.networks.get(nic['br'])
+            if not network.is_running:
+                network.start()
+        self.hypervisor.exec(spec.to_qemu_args(), cwd=self.irectory)
         with self.monitor as monitor:
             if spec["vnc"]["password"]:
                 monitor.execute("change-vnc-password", password=spec["vnc"]["password"])
