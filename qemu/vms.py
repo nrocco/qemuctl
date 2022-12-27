@@ -99,7 +99,7 @@ class Vm:
             network = self.hypervisor.networks.get(nic['br'])
             if not network.is_running:
                 network.start()
-        self.hypervisor.exec(spec.to_qemu_args(), cwd=self.irectory)
+        self.hypervisor.exec(spec.to_qemu_args(), cwd=self.directory)
         with self.monitor as monitor:
             if spec["vnc"]["password"]:
                 monitor.execute("change-vnc-password", password=spec["vnc"]["password"])
