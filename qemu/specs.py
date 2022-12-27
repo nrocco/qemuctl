@@ -100,6 +100,8 @@ class VmSpec(dict):
             spec["devices"] += [QemuOpt("device", driver="virtio-tablet-pci")]
         if not [device for device in spec["devices"] if device["driver"] == "virtio-balloon-pci"]:
             spec["devices"] += [QemuOpt("device", driver="virtio-balloon-pci")]
+        if not [device for device in spec["devices"] if device["driver"] == "virtio-rng-pci"]:
+            spec["devices"] += [QemuOpt("device", driver="virtio-rng-pci")]
         super().__init__(spec)
 
     def to_qemu_args(self):
