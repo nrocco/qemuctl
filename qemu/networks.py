@@ -91,14 +91,19 @@ class Network:
         if spec["ip_range"]:
             if 0 == len([addr for addr in self.address[0]['addr_info'] if addr['local'] == spec.ip_range[1]]):
                 self.hypervisor.exec(["ip", "addr", "add", f"{spec.ip_range[1]}/{spec.ip_range.prefixlen}", "dev", spec["name"]])
+            self.hypervisor.exec(["iptables", "-t", "nat", "-A", "POSTROUTING", "-s", f"{spec.ip_range[0]}/{spec.ip_range.prefixlen}", "-j", "MASQUERADE"])
         if spec["dhcp"]:
             if not self.hypervisor.pid_exists(os.path.join(self.directory, "pidfile"), "dnsmasq"):
                 self.hypervisor.exec(["dnsmasq", f"--conf-file={self.directory}/dnsmasq.conf"], cwd=self.directory)
+        self.hypervisor.exec(["sysctl", "net.ipv4.ip_forward=1"])
         return self
 
     def stop(self):
-        if self.spec['dhcp']:
+        spec = self.spec
+        if spec['dhcp']:
             self.hypervisor.pid_kill(os.path.join(self.directory, "pidfile"), "dnsmasq")
+        if spec["ip_range"]:
+            self.hypervisor.exec(["iptables", "-t", "nat", "-D", "POSTROUTING", "-s", f"{spec.ip_range[0]}/{spec.ip_range.prefixlen}", "-j", "MASQUERADE"])
         return self
 
     def destroy(self):
