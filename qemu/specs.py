@@ -228,7 +228,6 @@ class NetworkSpec(dict):
             "dns": False,
             "ip_range": None,
             "logging": True,
-            "nameserver": "1.1.1.1",
         }
         for arg in args:
             spec.update(arg)

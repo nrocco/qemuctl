@@ -153,10 +153,12 @@ def generate_dnsmasq_config(spec, directory):
         ]
     if spec['dns']:
         config += [
-            "strict-order",
             "domain-needed",
             "bogus-priv",
             "no-hosts",
+            "local-service",
+            "dhcp-fqdn",
+            "domain=qemuctl.local",  # TODO make this configurable
             "addn-hosts=addnhosts",
         ]
     else:
@@ -168,9 +170,11 @@ def generate_dnsmasq_config(spec, directory):
             f"dhcp-range={spec.ip_range[2]},{spec.ip_range[-2]},{spec.ip_range.netmask}",
             "dhcp-no-override",
             "dhcp-authoritative",
-            f"dhcp-option=6,{spec['nameserver']}",
+            "dhcp-ignore-names",
+            "no-ping",
+            f"dhcp-option=6,{spec.ip_range[1]}",
             f"dhcp-lease-max={spec.ip_range.num_addresses - 3}",
             f"dhcp-hostsfile={directory}/hostsfile",
             f"dhcp-leasefile={directory}/leases",
         ]
-    return "\n".join(config)
+    return "\n".join(config) + "\n"
