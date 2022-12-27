@@ -161,6 +161,7 @@ def vms_ssh(ctx, hypervisor, name):
 
 @vms.command("create")
 @click.option("--console/--no-console", is_flag=True, default=True, help="Open the VNC console after creating the machine")
+@click.option("--as-json", is_flag=True, default=False, help="If --dry-run is passed output json or plain qemu args")
 @click.option("--dry-run", is_flag=True, help="Do not create the virtual machine")
 @click.option("--snapshot", is_flag=True, help="write to temporary files instead of disk image files")
 @click.option("--uefi", is_flag=True, help="boot vm in uefi mode")
@@ -176,7 +177,7 @@ def vms_ssh(ctx, hypervisor, name):
 @click.argument("name")
 @pass_hypervisor
 @click.pass_context
-def vms_create(ctx, hypervisor, console, dry_run, **spec):
+def vms_create(ctx, hypervisor, console, as_json, dry_run, **spec):
     """
     Create a virtual machine.
 
@@ -222,7 +223,10 @@ def vms_create(ctx, hypervisor, console, dry_run, **spec):
     """
     spec = VmSpec(spec)
     if dry_run:
-        click.echo(json.dumps(spec, indent=2))
+        if as_json:
+            click.echo(json.dumps(spec, indent=2))
+        else:
+            click.echo(" ".join(spec.to_qemu_args()))
         ctx.exit(0)
     vm = hypervisor.vms.create(spec)
     vm.start()
