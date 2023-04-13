@@ -20,8 +20,14 @@ class Hypervisor:
                 'password': vnc_password,
             },
             'uefi': {
-                'code': '/usr/share/OVMF/OVMF_CODE.fd',  # TODO this is hard coded
-                'vars': '/usr/share/OVMF/OVMF_VARS.fd',  # TODO this is hard coded
+                'x86_64': {
+                    'code': os.path.join(self.directory, 'OVMF_CODE.fd'),
+                    'vars': os.path.join(self.directory, 'OVMF_VARS.fd'),
+                },
+                'aarch64': {
+                    'code': os.path.join(self.directory, 'AAVMF_CODE.fd'),
+                    'vars': os.path.join(self.directory, 'AAVMF_VARS.fd'),
+                },
             },
         }
 

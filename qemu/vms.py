@@ -23,11 +23,11 @@ class Vm:
         with vm.hypervisor.open_file(os.path.join(vm.directory, "spec.json"), "w") as file:
             json.dump(spec, file)
         for drive in spec["drives"]:
-            if "OVMF_CODE.fd" in drive["file"]:
-                vm.hypervisor.exec(["install", "--no-target-directory", "--owner=qemu", "--group=kvm", "--mode=775", vm.hypervisor.config['uefi']['code'], drive["file"]], cwd=vm.directory)
+            if "uefi_code.fd" in drive["file"]:
+                vm.hypervisor.exec(["install", "--no-target-directory", "--owner=qemu", "--group=kvm", "--mode=775", vm.hypervisor.config['uefi'][spec['arch']]['code'], drive["file"]], cwd=vm.directory)
                 continue
-            if "OVMF_VARS.fd" in drive["file"]:
-                vm.hypervisor.exec(["install", "--no-target-directory", "--owner=qemu", "--group=kvm", "--mode=775", vm.hypervisor.config['uefi']['vars'], drive["file"]], cwd=vm.directory)
+            if "uefi_vars.fd" in drive["file"]:
+                vm.hypervisor.exec(["install", "--no-target-directory", "--owner=qemu", "--group=kvm", "--mode=775", vm.hypervisor.config['uefi'][spec['arch']]['vars'], drive["file"]], cwd=vm.directory)
                 continue
             if "backing_file" in drive:
                 src = vm.hypervisor.images.get(drive["backing_file"]).file
