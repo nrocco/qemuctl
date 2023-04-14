@@ -226,6 +226,7 @@ class NetworkSpec(dict):
         spec = {
             "dhcp": True,
             "dns": False,
+            "tftp": False,
             "ip_range": None,
             "logging": True,
         }

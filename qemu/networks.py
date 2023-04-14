@@ -151,6 +151,11 @@ def generate_dnsmasq_config(spec, directory):
             "log-queries",
             f"log-facility={directory}/dnsmasq.log",
         ]
+    if spec['tftp']:
+        config += [
+            "enable-tftp",
+            f"tftp-root={directory}/tftp",
+        ]
     if spec['dns']:
         config += [
             "domain-needed",

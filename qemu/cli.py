@@ -435,6 +435,7 @@ def networks_show(hypervisor, name):
 
 @networks.command("create")
 @click.option("--ip-range", help="Assign an ip address to this network")
+@click.option("--tftp/--no-tftp", default=True, help="Enable tftp server on this network")
 @click.option("--dns/--no-dns", default=True, help="Enable dns server on this network")
 @click.option("--dhcp/--no-dhcp", default=True, help="Enable dhcp server on this network")
 @click.argument("name")
