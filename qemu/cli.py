@@ -64,7 +64,6 @@ def check(hypervisor):
     click.echo("Check binaries:")
     click.echo(" - {}".format(hypervisor.exec(["type", "find"]).strip()))
     click.echo(" - {}".format(hypervisor.exec(["type", "install"]).strip()))
-    click.echo(" - {}".format(hypervisor.exec(["type", "ifstat"]).strip()))
     click.echo(" - {}".format(hypervisor.exec(["type", "socat"]).strip()))
     click.echo(" - {}".format(hypervisor.exec(["type", "dnsmasq"]).strip()))
     click.echo(" - {}".format(hypervisor.exec(["type", "ip"]).strip()))
@@ -424,13 +423,14 @@ def networks_show(hypervisor, name):
     """
     network = hypervisor.networks.get(name)
     click.echo(f"Name: {network.name}")
-    click.echo("Ip: " + ", ".join([addr['local'] for addr in network.address[0]['addr_info']]))
+    click.echo("Ip: " + ", ".join([addr['local'] for addr in network.address[0]['addr_info']] or '~'))
     click.echo("Leases:")
     for lease in network.leases:
         click.echo(f"  {lease['mac']} => {lease['ip']}")
+    bridge = network.bridge
     click.echo("Stats:")
-    click.echo(f"  Received: {sizeof_fmt(network.stats['kernel'][name]['rx_bytes'])}")
-    click.echo(f"  Sent: {sizeof_fmt(network.stats['kernel'][name]['tx_bytes'])}")
+    click.echo(f"  Received: {sizeof_fmt(bridge['stats64']['rx']['bytes'])}")
+    click.echo(f"  Sent: {sizeof_fmt(bridge['stats64']['tx']['bytes'])}")
 
 
 @networks.command("create")
