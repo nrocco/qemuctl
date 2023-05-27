@@ -165,6 +165,8 @@ def vms_ssh(ctx, hypervisor, name):
 @click.option("--snapshot", is_flag=True, help="write to temporary files instead of disk image files")
 @click.option("--uefi", is_flag=True, help="boot vm in uefi mode")
 @click.option("--arch", default="x86_64", help="configure the architecture to use")
+@click.option("--kvm/--no-kvm", is_flag=True, default=True, help="use kvm acceleration")
+@click.option("--machine", default=None, help="configure the machine to use")
 @click.option("--cpu", default="host", help="configure the cpu to use")
 @click.option("--memory", default="size=1G", help="configure RAM")
 @click.option("--smp", default="cores=2", help="configure CPU topology")

@@ -57,8 +57,7 @@ class VmSpec(dict):
             "arch": "x86_64",
             "kvm": True,
             "daemonize": True,
-            "defaults": False,
-            "hpet": False,
+            "defaults": True,
             "shutdown": False,
             "snapshot": False,
             "startup": False,
@@ -73,6 +72,8 @@ class VmSpec(dict):
         for arg in args:
             defaults.update(arg)
         defaults.update(kwargs)
+        if not defaults['machine']:
+            defaults["machine"] = "pc" if defaults["arch"] == "x86_64" else "virt"
         spec = {}
         for key, value in defaults.items():
             if value is None:
