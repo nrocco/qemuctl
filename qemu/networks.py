@@ -11,7 +11,7 @@ class Network:
         network.hypervisor.make_dir(network.directory)
         with network.hypervisor.open_file(os.path.join(network.directory, "spec.json"), "w") as file:
             json.dump(spec, file)
-        if spec["ip_range"] and spec["dhcp"]:
+        if spec["dhcp"] or spec['tftp'] or spec['dns']:
             with network.hypervisor.open_file(os.path.join(network.directory, "dnsmasq.conf"), "w") as file:
                 file.write(generate_dnsmasq_config(spec, network.directory))
         return network
@@ -85,10 +85,10 @@ class Network:
         elif 'UP' not in bridge_address[0]['flags']:
             self.hypervisor.exec(["ip", "link", "set", spec["name"], "up"])
         if spec["ip_range"]:
-            if 0 == len([addr for addr in self.address[0]['addr_info'] if addr['local'] == spec.ip_range[1]]):
+            if 0 == len([addr for addr in self.address[0]['addr_info'] if addr['local'] == str(spec.ip_range[1])]):
                 self.hypervisor.exec(["ip", "addr", "add", f"{spec.ip_range[1]}/{spec.ip_range.prefixlen}", "dev", spec["name"]])
             self.hypervisor.exec(["iptables", "-t", "nat", "-A", "POSTROUTING", "-s", f"{spec.ip_range[0]}/{spec.ip_range.prefixlen}", "-j", "MASQUERADE"])
-        if spec["dhcp"]:
+        if spec["dhcp"] or spec['tftp'] or spec['dns']:
             if not self.hypervisor.pid_exists(os.path.join(self.directory, "pidfile"), "dnsmasq"):
                 self.hypervisor.exec(["dnsmasq", f"--conf-file={self.directory}/dnsmasq.conf"], cwd=self.directory)
         self.hypervisor.exec(["sysctl", "net.ipv4.ip_forward=1"])
@@ -139,43 +139,47 @@ def generate_dnsmasq_config(spec, directory):
         "except-interface=lo",
         "bind-interfaces",
         "no-poll",
-        "user=qemu",
+        "user=nobody",
+        f"log-facility={directory}/dnsmasq.log",
     ]
-    if spec['logging']:
+    if spec['dhcp']:
         config += [
             "log-dhcp",
-            "log-queries",
-            f"log-facility={directory}/dnsmasq.log",
+            f"dhcp-range={spec.ip_range[2]},{spec.ip_range[-2]},{spec.ip_range.netmask}",
+            "dhcp-no-override",
+            "dhcp-authoritative",
+            "dhcp-ignore-names",
+            "no-ping",
+            f"dhcp-option=6,{spec.ip_range[1] if spec['dns'] else '1.1.1.1'}",
+            f"dhcp-lease-max={spec.ip_range.num_addresses - 3}",
+            f"dhcp-hostsfile={directory}/hostsfile",
+            f"dhcp-leasefile={directory}/leases",
         ]
     if spec['tftp']:
         config += [
             "enable-tftp",
             f"tftp-root={directory}/tftp",
+            # "dhcp-match=set:efi-x86_64,option:client-arch,7",
+            # "dhcp-match=set:efi-x86_64,option:client-arch,9",
+            # "dhcp-match=set:efi-aarch64,option:client-arch,11",
+            # "dhcp-match=set:bios,option:client-arch,0",
+            # "dhcp-boot=tag:efi-x86_64,ipxe.efi",
+            # "dhcp-boot=tag:bios,undionly.kpxe",
+            # "dhcp-boot=tag:efi-aarch64,snponly.efi",
         ]
     if spec['dns']:
         config += [
             "domain-needed",
             "bogus-priv",
             "no-hosts",
+            "log-queries",
             "local-service",
-            "dhcp-fqdn",
+            "dhcp-fqdn" if spec['dhcp'] else "",
             "domain=qemuctl.local",  # TODO make this configurable
             "addn-hosts=addnhosts",
         ]
     else:
         config += [
             "port=0",
-        ]
-    if spec.ip_range:
-        config += [
-            f"dhcp-range={spec.ip_range[2]},{spec.ip_range[-2]},{spec.ip_range.netmask}",
-            "dhcp-no-override",
-            "dhcp-authoritative",
-            "dhcp-ignore-names",
-            "no-ping",
-            f"dhcp-option=6,{spec.ip_range[1]}",
-            f"dhcp-lease-max={spec.ip_range.num_addresses - 3}",
-            f"dhcp-hostsfile={directory}/hostsfile",
-            f"dhcp-leasefile={directory}/leases",
         ]
     return "\n".join(config) + "\n"

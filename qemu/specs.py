@@ -225,16 +225,17 @@ class DriveOpt(QemuOpt):
 class NetworkSpec(dict):
     def __init__(self, *args, **kwargs):
         spec = {
-            "dhcp": True,
+            "dhcp": False,
             "dns": False,
             "tftp": False,
             "ip_range": None,
-            "logging": True,
         }
         for arg in args:
             spec.update(arg)
         spec.update(kwargs)
-        if "ip_range" in spec and spec["ip_range"]:
+        if not spec["ip_range"] and (spec['dhcp'] or spec['dns'] or spec['tftp']):
+            raise Exception("A network without an ip_range cannot have services")
+        if spec["ip_range"]:
             self.ip_range = ipaddress.ip_network(spec["ip_range"])
         else:
             self.ip_range = None

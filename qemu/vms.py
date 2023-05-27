@@ -12,7 +12,7 @@ class Vm:
         spec.update({
             "chroot": vm.directory,
             "pidfile": "pidfile",
-            "runas": "qemu",
+            "runas": "nobody",
             "qmp": "unix:qmp.sock,server=yes,wait=no",
             "vnc": {
                 "vnc": vm.hypervisor.config["vnc"]["address"],
@@ -24,10 +24,10 @@ class Vm:
             json.dump(spec, file)
         for drive in spec["drives"]:
             if "uefi_code.fd" in drive["file"]:
-                vm.hypervisor.exec(["install", "--no-target-directory", "--owner=qemu", "--group=kvm", "--mode=775", vm.hypervisor.config['uefi'][spec['arch']]['code'], drive["file"]], cwd=vm.directory)
+                vm.hypervisor.exec(["install", "--no-target-directory", "--owner=nobody", "--group=kvm", "--mode=775", vm.hypervisor.config['uefi'][spec['arch']]['code'], drive["file"]], cwd=vm.directory)
                 continue
             if "uefi_vars.fd" in drive["file"]:
-                vm.hypervisor.exec(["install", "--no-target-directory", "--owner=qemu", "--group=kvm", "--mode=775", vm.hypervisor.config['uefi'][spec['arch']]['vars'], drive["file"]], cwd=vm.directory)
+                vm.hypervisor.exec(["install", "--no-target-directory", "--owner=nobody", "--group=kvm", "--mode=775", vm.hypervisor.config['uefi'][spec['arch']]['vars'], drive["file"]], cwd=vm.directory)
                 continue
             if "backing_file" in drive:
                 src = vm.hypervisor.images.get(drive["backing_file"]).file
