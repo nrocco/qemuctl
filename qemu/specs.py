@@ -57,7 +57,7 @@ class VmSpec(dict):
             "arch": "x86_64",
             "kvm": True,
             "daemonize": True,
-            "defaults": True,
+            "defaults": False,
             "shutdown": False,
             "snapshot": False,
             "startup": False,

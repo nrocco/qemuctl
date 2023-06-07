@@ -43,6 +43,7 @@ class Images:
         get json https://app.vagrantup.com/generic/boxes/rocky9
         find most recent version number
         check if we have the version already
-        wget -O- https://app.vagrantup.com/generic/boxes/rocky9/versions/4.1.20/providers/libvirt.box | tar xf - box.img
+        wget --output-document=- https://app.vagrantup.com/generic/boxes/alpine317/versions/4.2.16/providers/libvirt.box | tar --extract --file=- box.img
+        tar --extract --file libvirt.box --transform 's#box.img#fuu.img#' box.img
         """
         pass
