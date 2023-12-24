@@ -4,6 +4,7 @@ import logging
 import math
 import os
 import subprocess
+import time
 
 from . import __version__
 from .hypervisor_ssh import HypervisorSSH
@@ -462,6 +463,20 @@ def networks_start(hypervisor, name):
     network = hypervisor.networks.get(name)
     network.start()
     click.echo(f"Network {name} started")
+
+
+@networks.command("restart")
+@click.argument("name")
+@pass_hypervisor
+def networks_restart(hypervisor, name):
+    """
+    Restart a network.
+    """
+    network = hypervisor.networks.get(name)
+    network.stop()
+    time.sleep(1)
+    network.start()
+    click.echo(f"Network {name} restarted")
 
 
 @networks.command("stop")
